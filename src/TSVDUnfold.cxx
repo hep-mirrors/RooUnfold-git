@@ -445,12 +445,14 @@ TMatrixD RooUnfoldSvdT<Hist,Hist2D>::SVDUnfold::GetUnfoldCovMatrix( const TMatri
        else                  L(iPar,jPar) = 0;
      }
    }
-   
+
    // Remember it
    TMatrixD Lt(TMatrixD::kTransposed,L);
    TRandom3 random(seed);
 
+   fToyhisto.ResizeTo(fBdat.GetNrows());
    fToyhisto = fBdat;
+   fToyhistoE.ResizeTo(fBdat.GetNrows());   
    fToyhistoE = fBdat;
    for (int i = 0; i < fToyhistoE.GetNrows(); i++){
      fToyhistoE[i] = fBcov[i][i];
@@ -470,7 +472,7 @@ TMatrixD RooUnfoldSvdT<Hist,Hist2D>::SVDUnfold::GetUnfoldCovMatrix( const TMatri
 
       // Add the mean value offsets and store the results
       for (int j=0; j<fMdim; j++) {
-	fToyhisto[j] = fBdat[j]+g(j-1);
+	fToyhisto[j] = fBdat[j]+g(j);
         fToyhistoE[j] = fBcov[j][j];
       }
 
@@ -498,7 +500,7 @@ TMatrixD RooUnfoldSvdT<Hist,Hist2D>::SVDUnfold::GetUnfoldCovMatrix( const TMatri
 
       // Add the mean value offsets and store the results
       for (int j=0; j<fMdim; j++) {
-	fToyhisto[j] = fBdat[j]+g(j-1);
+	fToyhisto[j] = fBdat[j]+g(j);
         fToyhistoE[j] = fBcov[j][j];
       }
       TVectorD unfres(UnfoldV(GetKReg()));
@@ -510,7 +512,7 @@ TMatrixD RooUnfoldSvdT<Hist,Hist2D>::SVDUnfold::GetUnfoldCovMatrix( const TMatri
       }
    }
    fToyMode = kFALSE;
-   
+
    return unfcov;
 }
 
