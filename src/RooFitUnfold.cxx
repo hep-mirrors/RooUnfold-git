@@ -368,7 +368,6 @@ RooUnfoldSpec::RooUnfoldSpec(const char* name, const char* title, const TH1* tru
     obs->setConstant(true);
     reco_vars.add(*obs);
   }
-
   this->setup(truth,truth_vars,reco,reco_vars,response,bkg,data,includeUnderflowOverflow,errorThreshold,useDensity);
 }
 
@@ -558,24 +557,6 @@ namespace {
     }
     return bins;
   }
-
-  template<class TMatrixTT>
-  TH2* convertMatrixToHistogram(const TMatrixTT& matrix, const TString& name){
-    // convert a matrix into a 2d histogram
-    const size_t ncols = matrix.GetNcols();
-    const size_t nrows = matrix.GetNrows();
-    TH2* hist = new TH2D(name,name,ncols,0,ncols,nrows,0,nrows);
-    hist->SetDirectory(NULL);
-    for(size_t i=0; i<nrows; ++i){
-      for(size_t j=0; j<ncols; ++j){
-	size_t bin = hist->GetBin(i+1,j+1);
-	hist->SetBinContent(bin,matrix(i,j));
-	hist->SetBinError(bin,0);
-      }
-    }
-    hist->SetEntries(ncols*nrows);
-    return hist;
-  }
 }
 
 
@@ -594,13 +575,21 @@ TMatrixD RooUnfoldSpec::makeCovarianceMatrix() const {
 
 
 TH2* RooUnfoldSpec::makeCovarianceHistogram() const {
-  return ::convertMatrixToHistogram(makeCovarianceMatrix(),"covariances");
+    // convert a matrix into a 2d histogram
+  auto matrix = makeCovarianceMatrix();
+  RooUnfolding::Variable<TH2> obs = RooUnfolding::Variable<TH2>(static_cast<RooRealVar*>(&_obs_reco[0]));
+  TH2* hist = createHist<TH2>(matrix,"covariances","covariances",obs,obs);
+  return hist;
 }
 
 namespace {
   TH1* stathist (std::vector<TH1*>& hists, const std::vector<Variable<TH1>>& vars, const RooUnfoldSpec::HistContainer& cont, const char* name, const char* title, int color, bool useDensity, bool includeUnderflowOverflow) {  
     // here, we assume poisson statistics, so the variance is equal to the mean
-    TH1* variance = createHist<TH1>(h2v(cont._nom,false,useDensity), name, title, vars, includeUnderflowOverflow);
+    const auto vec = h2v(cont._nom,false,useDensity);
+    for(size_t i=0; i<vec.GetNrows(); ++i){
+      std::cout << name << " " << i << " " << vec[i] << " " << std::endl;
+    }
+    TH1* variance = createHist<TH1>(vec, name, title, vars, includeUnderflowOverflow);
     variance->SetFillColor(color);  
     variance->SetDirectory(0);
     variance->GetYaxis()->SetTitle("Variance");
@@ -612,13 +601,17 @@ namespace {
     if (!cont._shapes.empty()) {
       int isys = 1;
       for (const auto& var : cont._shapes) {
-	auto nominal = h2v(cont._nom,false,useDensity);	
+	auto nominal = h2v(cont._nom,false,useDensity);
+	TVectorD variances(nominal.GetNrows());
 	auto shapeUp   = h2v(var.second[0],false,useDensity);
 	auto shapeDown = h2v(var.second[1],false,useDensity);
 	for (int i = 0; i < shapeUp.GetNrows(); ++i) {
-	  nominal[i] = std::pow(shapeUp[i] - nominal[i], 2) + std::pow(shapeDown[i] - nominal[i], 2);
+	  variances[i] = std::pow(shapeUp[i] - nominal[i], 2) + std::pow(shapeDown[i] - nominal[i], 2);
 	}
-	TH1* varhist = createHist<TH1>(nominal, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, includeUnderflowOverflow);
+	for(size_t i=0; i<variances.GetNrows(); ++i){
+	  std::cout << name << " " << i << " " << nominal[i] << " " << shapeUp[i] << " " << shapeDown[i] << ": " << variances[i] << " " << std::endl;
+	}	
+	TH1* varhist = createHist<TH1>(variances, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, includeUnderflowOverflow);
 	varhist->SetLineColor(0);	
 	varhist->SetFillColor(color+isys);
 	varhist->SetDirectory(0);
@@ -1127,7 +1120,8 @@ void RooUnfoldSpec::HistContainer::setNominal(RooDataHist* data, const RooArgLis
 }
 
 void RooUnfoldSpec::HistContainer::setNominal(const TH1* nom, const RooArgList& obslist, double errorThreshold, bool includeUnderflowOverflow, bool useDensity){
-  this->_nom = RooUnfolding::makeHistFunc(nom,obslist,includeUnderflowOverflow,useDensity);
+  // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore
+  this->_nom = RooUnfolding::makeHistFunc(nom,obslist,includeUnderflowOverflow,!useDensity);
   this->_obs.add(obslist);
   if(errorThreshold >= 0){
     this->_gammas = RooUnfolding::createGammas(nom,includeUnderflowOverflow,errorThreshold);
@@ -1164,41 +1158,42 @@ void RooUnfoldSpec::checkConsistency(const HistContainer& cont, const TH1* hist)
 void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, const TH1* up, const TH1* down){
   //! register a new shape systematic
   this->lockCheck();
+  // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore  
   switch(c){
   case kTruth:
     this->checkConsistency(this->_truth,up);
     this->checkConsistency(this->_truth,down);
     this->_truth.addShape(name,
-                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_up",up->GetName(),name),up,this->_obs_truth,this->_includeUnderflowOverflow,this->_useDensity),
-                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_dn",down->GetName(),name),down,this->_obs_truth,this->_includeUnderflowOverflow,this->_useDensity));
+                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_up",up->GetName(),name),up,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity),
+                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_dn",down->GetName(),name),down,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
   case kMeasured:
     this->checkConsistency(this->_reco,up);
     this->checkConsistency(this->_reco,down);
     this->_reco.addShape(name,
-                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity),
-                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity));
+                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
+                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
   case kData:
     this->checkConsistency(this->_data,up);
     this->checkConsistency(this->_data,down);
     this->_data.addShape(name,
-                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity),
-                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity));
+                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
+                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
   case kResponse:
     this->checkConsistency(this->_res,up);
     this->checkConsistency(this->_res,down);
     this->_res.addShape(name,
-                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_up",up->GetName(),name),up,this->_obs_all,this->_includeUnderflowOverflow,this->_useDensity),
-                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_dn",down->GetName(),name),down,this->_obs_all,this->_includeUnderflowOverflow,this->_useDensity));
+                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_up",up->GetName(),name),up,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity),
+                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_dn",down->GetName(),name),down,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
   case kBackground:
     this->checkConsistency(this->_bkg,up);
     this->checkConsistency(this->_bkg,down);
     this->_bkg.addShape(name,
-                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity),
-                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,this->_useDensity));
+                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
+                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
   }
 }
