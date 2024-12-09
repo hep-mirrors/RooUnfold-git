@@ -174,16 +174,7 @@ RooUnfoldSvdT<Hist,Hist2D>::GetCov() const
   //! Get covariance matrix
   if (!this->_svd) return;
   this->_cache._cov.ResizeTo(this->_nt,this->_nt);
-  //Get the covariance matrix for statistical uncertainties on the measured distribution
-  if (this->_dosys!=2) this->_cache._cov = this->_svd->GetXtau();
-  //Get the covariance matrix for statistical uncertainties on the response matrix
-  //Uses Poisson or Gaussian-distributed toys, depending on response matrix histogram's Sumw2 setting.
-
-  // Disabled for now. The new error handling should include the statistical uncertainties on the response
-  // matrix.
-  // if (this->_dosys){
-  //   add(this->_cache._cov,this->_svd->GetAdetCovMatrix (this->_NToys));
-  // }
+  this->_cache._cov = this->_svd->GetUnfoldCovMatrix( this->GetMeasuredCov(), 100, 42 );
   this->_cache._haveCov= true;
 }
 
