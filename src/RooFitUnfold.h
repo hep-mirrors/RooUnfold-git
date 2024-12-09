@@ -126,6 +126,7 @@ public:
   RooHistFunc* makeHistFuncTruth(const TH1* hist);
   RooHistFunc* makeHistFuncMeasured(const TH1* hist);
   TMatrixD makeCovarianceMatrix() const;
+  TH2* makeCovarianceHistogram() const;
   THStack* makeBreakdownHistogram() const;
 
   const RooArgList& getTruthObservables() const { return _obs_truth; }

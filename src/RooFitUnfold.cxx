@@ -558,6 +558,24 @@ namespace {
     }
     return bins;
   }
+
+  template<class TMatrixTT>
+  TH2* convertMatrixToHistogram(const TMatrixTT& matrix, const TString& name){
+    // convert a matrix into a 2d histogram
+    const size_t ncols = matrix.GetNcols();
+    const size_t nrows = matrix.GetNrows();
+    TH2* hist = new TH2D(name,name,ncols,0,ncols,nrows,0,nrows);
+    hist->SetDirectory(NULL);
+    for(size_t i=0; i<nrows; ++i){
+      for(size_t j=0; j<ncols; ++j){
+	size_t bin = hist->GetBin(i+1,j+1);
+	hist->SetBinContent(bin,matrix(i,j));
+	hist->SetBinError(bin,0);
+      }
+    }
+    hist->SetEntries(ncols*nrows);
+    return hist;
+  }
 }
 
 
@@ -572,6 +590,11 @@ TMatrixD RooUnfoldSpec::makeCovarianceMatrix() const {
   addToCovarianceMatrix(_bkg, covarianceMatrix);
 
   return covarianceMatrix;
+}
+
+
+TH2* RooUnfoldSpec::makeCovarianceHistogram() const {
+  return ::convertMatrixToHistogram(makeCovarianceMatrix(),"covariances");
 }
 
 
