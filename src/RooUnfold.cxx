@@ -1559,7 +1559,7 @@ const TVectorD&          RooUnfoldT<Hist,Hist2D>::Emeasured() const
     if(_covMes){
       _cache._eMes= new TVectorD(_nm);
       for (Int_t i= 0; i<_nm; i++) {
-        Double_t e= this->_cache._cov(i,i);
+        Double_t e= (*_covMes)(i,i);
         if (e>0.0) (*_cache._eMes)[i]= sqrt(e);
       }
     } else {

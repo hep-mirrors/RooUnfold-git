@@ -177,19 +177,16 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 
   Bool_t oldstat= TH1::AddDirectoryStatus();
   TH1::AddDirectory (kFALSE);
-
-  TVectorD vmeas = this->Vmeasured();
-  TVectorD verr = this->Emeasured();
+  TVectorD vmeas(this->Vmeasured());
+  TVectorD verr(this->Emeasured());
   const TVectorD& vtruth(this->_res->Vtruth());
-  TMatrixD mres = this->_res->Mresponse(false);
-  
+  TMatrixD mres(this->_res->Mresponse(false));
   // The added empty bins are used to store inefficiencies.
   RooUnfolding::addEmptyBins(vmeas);
   RooUnfolding::addEmptyBins(verr);
   RooUnfolding::addEmptyBins(mres);  
 
   TH1::AddDirectory (oldstat);
-    
   // Add inefficiencies to measured overflow bin
   for (Int_t j= 1; j<=this->_nt; j++) {
     Double_t ntru= 0.0;
@@ -198,7 +195,6 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
     }
     mres[this->_nm + 1][j] = vtruth[j - 1] - ntru;
   }
-    
   // Subtract fakes from measured distribution
   if (this->_res->HasFakes() && _handleFakes) {
     TVectorD fakes= this->_res->Vfakes();
@@ -209,7 +205,6 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
       vmeas[i] = vmeas[i] - (fac*fakes[i - 1]);
     }
   }
-
   Int_t ndim = dim(this->_meas);
   TUnfold::ERegMode reg= _reg_method;
   
@@ -222,7 +217,7 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 #endif
     _unf= new TUnfoldV17(&mres,TUnfold::kHistMapOutputVert,reg);
   }
-  
+
   if        (ndim == 2) {
     Int_t nx= nBins(this->_meas,X), ny= nBins(this->_meas,Y);
     _unf->RegularizeBins2D (0, 1, nx, nx, ny, _reg_method);

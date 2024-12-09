@@ -126,9 +126,7 @@ namespace RooUnfolding {
   // Add an empty bin on both sides of the vector.
   void addEmptyBins(TVectorD& v){
     
-    Int_t bins = v.GetNrows();
-    bins+=2;
-    
+    Int_t bins = v.GetNrows() + 2;
     v.ResizeTo(bins);
 
     for (Int_t i = bins; i > 1; i--){
@@ -140,11 +138,8 @@ namespace RooUnfolding {
   // Add one layer of empty bins on all sides of the matrix.
   void addEmptyBins(TMatrixD& m){
     
-    Int_t bins_x = m.GetNrows();
-    Int_t bins_y = m.GetNcols();
-    bins_x+=2;
-    bins_y+=2;
-
+    Int_t bins_x = m.GetNrows() + 2;
+    Int_t bins_y = m.GetNcols() + 2;
     m.ResizeTo(bins_x, bins_y);
 
     for (Int_t i = bins_x; i > 0; i--){
