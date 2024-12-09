@@ -14,6 +14,9 @@ set(VERSION_MAJOR   3   CACHE STRING "Project major version number.")
 set(VERSION_MINOR   0   CACHE STRING "Project minor version number.")
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR)
 
+set(CMAKE_BUILD_TYPE Debug) 
+# set(CMAKE_BUILD_TYPE Release)
+
 option (RooUnfoldGenerateCMakeConfig "generate a RooUnfoldConfig.cmake file for dependency tracking with other packages" OFF)
 # See https://cmake.org/cmake/help/latest/policy/CMP0077.html
 # For compatability with old CMake versions, this variable is unset, and then set again.
