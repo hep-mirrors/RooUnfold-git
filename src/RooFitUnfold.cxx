@@ -646,7 +646,7 @@ THStack* RooUnfoldSpec::makeBreakdownHistogram() const {
   for(auto* h: hists){
     hstack->Add(h);
   }
-  hstack->SetTitle(TString("Breakdown of systematic uncertainties;")+TString(sig_nom->GetTitle())+TString(";Variance / Number of Events Squared"));  
+  hstack->SetTitle(TString("Breakdown of systematic uncertainties;Observable;Variance / Number of Events Squared"));  
   return hstack;
 }
 
