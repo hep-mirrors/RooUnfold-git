@@ -524,18 +524,11 @@ RooUnfoldT<Hist,Hist2D>::Unfold() const
 template<class Hist,class Hist2D> void
 RooUnfoldT<Hist,Hist2D>::GetErrors() const
 {
-  //!Creates vector of diagonals of covariance matrices.
-  if(this->_withError != kErrors){
-    throw std::runtime_error("unknown error propagation method!");
+  this->GetCov();
+  _cache._variances.ResizeTo (_nt);  
+  for(size_t i=0; i<_nt; ++i){
+    _cache._variances(i) = _cache._cov(i,i);
   }
-
-  if (!_cache._haveCov) GetCov();
-  if (!_cache._haveCov) return;
-  _cache._variances.ResizeTo(_nt);
-  for (Int_t i= 0; i < _nt; i++) {
-    _cache._variances(i)= _cache._cov(i,i);
-  }
-  _cache._haveCov = false;
   _cache._haveErrors= true;
 }
 
@@ -551,7 +544,6 @@ RooUnfoldT<Hist,Hist2D>::GetCov() const
       _cache._cov(i,j)= covmeas(i,j);
     }
   }
-  
   _cache._haveCov= true;
 }
 

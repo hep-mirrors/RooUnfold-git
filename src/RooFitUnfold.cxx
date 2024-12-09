@@ -597,38 +597,28 @@ TH2* RooUnfoldSpec::makeCovarianceHistogram() const {
   return ::convertMatrixToHistogram(makeCovarianceMatrix(),"covariances");
 }
 
-
-THStack* RooUnfoldSpec::makeBreakdownHistogram() const {
-  std::vector<TH1*> hists;
-  std::vector<Variable<TH1>> vars;
-  for(auto& obs: _obs_reco){
-    vars.push_back(Variable<TH1>(static_cast<RooRealVar*>(obs)));
-  }
-
-  auto stathist = [&] (const HistContainer& cont, const char* name, const char* title, int color) {
+namespace {
+  TH1* stathist (std::vector<TH1*>& hists, const std::vector<Variable<TH1>>& vars, const RooUnfoldSpec::HistContainer& cont, const char* name, const char* title, int color, bool useDensity, bool includeUnderflowOverflow) {  
     // here, we assume poisson statistics, so the variance is equal to the mean
-    TH1* variance = createHist<TH1>(h2v(cont._nom,false,this->_useDensity), name, title, vars, this->_includeUnderflowOverflow);
+    TH1* variance = createHist<TH1>(h2v(cont._nom,false,useDensity), name, title, vars, includeUnderflowOverflow);
     variance->SetFillColor(color);  
     variance->SetDirectory(0);
     variance->GetYaxis()->SetTitle("Variance");
     hists.push_back(variance);
     return variance;
   };
-  
-  auto* sig_nom = stathist(_reco, "sig_stat", "signal statistics", kRed);
-  auto* bkg_nom = stathist(_bkg, "bkg_stat", "background statistics", kBlue);  
 
-  auto addshapes = [&] (const HistContainer& cont, const char* name, const char* title, int color) {  
+  void addshapes (std::vector<TH1*>& hists, const std::vector<Variable<TH1>>& vars, const RooUnfoldSpec::HistContainer& cont, const char* name, const char* title, int color, bool useDensity, bool includeUnderflowOverflow) {  
     if (!cont._shapes.empty()) {
       int isys = 1;
       for (const auto& var : cont._shapes) {
-	auto nominal = h2v(cont._nom,false,this->_useDensity);	
-	auto shapeUp   = h2v(var.second[0],false,this->_useDensity);
-	auto shapeDown = h2v(var.second[1],false,this->_useDensity);
+	auto nominal = h2v(cont._nom,false,useDensity);	
+	auto shapeUp   = h2v(var.second[0],false,useDensity);
+	auto shapeDown = h2v(var.second[1],false,useDensity);
 	for (int i = 0; i < shapeUp.GetNrows(); ++i) {
 	  nominal[i] = std::pow(shapeUp[i] - nominal[i], 2) + std::pow(shapeDown[i] - nominal[i], 2);
 	}
-	TH1* varhist = createHist<TH1>(nominal, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, this->_includeUnderflowOverflow);
+	TH1* varhist = createHist<TH1>(nominal, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, includeUnderflowOverflow);
 	varhist->SetLineColor(0);	
 	varhist->SetFillColor(color+isys);
 	varhist->SetDirectory(0);
@@ -638,19 +628,16 @@ THStack* RooUnfoldSpec::makeBreakdownHistogram() const {
     }
   };
 
-  addshapes(_reco, "sig_shape", "signal shape systematic", kRed);
-  addshapes(_bkg, "bkg_shape", "background shape systematic", kBlue);
-
-  auto addnorms = [&] (const HistContainer& cont, const char* name, const char* title, int color) {  
+  void addnorms (std::vector<TH1*>& hists, const std::vector<Variable<TH1>>& vars, const RooUnfoldSpec::HistContainer& cont, const char* name, const char* title, int color, bool useDensity, bool includeUnderflowOverflow) {  
     if (!cont._norms.empty()) {
       int isys = 1;
       for (const auto& var : cont._norms) {
 	// Calculate sum of squares of norm uncertainties
-	auto nominal = h2v(cont._nom,false,this->_useDensity);
+	auto nominal = h2v(cont._nom,false,useDensity);
 	for (int i = 0; i < nominal.GetNrows(); ++i) {
 	  nominal[i] = pow(nominal[i]*(var.second[0]-1),2) + pow(nominal[i]*(var.second[1]-1),2);
 	}
-	TH1* varhist = createHist<TH1>(nominal, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, this->_includeUnderflowOverflow);
+	TH1* varhist = createHist<TH1>(nominal, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, includeUnderflowOverflow);
 	varhist->SetLineColor(0);		
 	varhist->SetFillColor(color-isys);
 	varhist->SetDirectory(0);
@@ -659,9 +646,24 @@ THStack* RooUnfoldSpec::makeBreakdownHistogram() const {
       }
     }
   };
+}
+  
+  
+THStack* RooUnfoldSpec::makeMeasuredBreakdownHistogram() const {
+  std::vector<TH1*> hists;
+  std::vector<Variable<TH1>> vars;
+  for(auto& obs: _obs_reco){
+    vars.push_back(Variable<TH1>(static_cast<RooRealVar*>(obs)));
+  }
+  
+  auto* sig_nom = stathist(hists, vars, _reco, "sig_stat", "signal statistics", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+  auto* bkg_nom = stathist(hists, vars, _bkg, "bkg_stat", "background statistics", kBlue, this->_useDensity, this->_includeUnderflowOverflow);
 
-  addnorms(_reco, "sig_norm", "signal normalization systematic", kRed);
-  addnorms(_bkg, "bkg_norm", "background normalization systematic", kBlue);        
+  addshapes(hists, vars, _reco, "sig_shape", "signal shape systematic", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+  addshapes(hists, vars, _bkg, "bkg_shape", "background shape systematic", kBlue, this->_useDensity, this->_includeUnderflowOverflow);
+
+  addnorms(hists, vars, _reco, "sig_norm", "signal normalization systematic", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+  addnorms(hists, vars ,_bkg, "bkg_norm", "background normalization systematic", kBlue, this->_useDensity, this->_includeUnderflowOverflow);
 
   std::sort(hists.begin(),hists.end(),[](const TH1* ha, const TH1* hb){ return ha->Integral() < hb->Integral(); });
 
@@ -669,7 +671,30 @@ THStack* RooUnfoldSpec::makeBreakdownHistogram() const {
   for(auto* h: hists){
     hstack->Add(h);
   }
-  hstack->SetTitle(TString("Breakdown of systematic uncertainties;Observable;Variance / Number of Events Squared"));  
+  hstack->SetTitle(TString("Breakdown of systematic uncertainties on expected measurement;Observable;Variance / Number of Events Squared"));  
+  return hstack;
+}
+
+THStack* RooUnfoldSpec::makeTruthBreakdownHistogram() const {
+  std::vector<TH1*> hists;
+  std::vector<Variable<TH1>> vars;
+  for(auto& obs: _obs_truth){
+    vars.push_back(Variable<TH1>(static_cast<RooRealVar*>(obs)));
+  }
+  
+  auto* sig_nom = stathist(hists, vars, _truth, "sig_stat", "signal statistics", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+
+  addshapes(hists, vars, _truth, "sig_shape", "signal shape systematic", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+
+  addnorms(hists, vars, _truth, "sig_norm", "signal normalization systematic", kRed, this->_useDensity, this->_includeUnderflowOverflow);
+
+  std::sort(hists.begin(),hists.end(),[](const TH1* ha, const TH1* hb){ return ha->Integral() < hb->Integral(); });
+
+  THStack* hstack = new THStack("breakdown","breakdown");
+  for(auto* h: hists){
+    hstack->Add(h);
+  }
+  hstack->SetTitle(TString("Breakdown of systematic uncertainties on truth model;Observable;Variance / Number of Events Squared"));  
   return hstack;
 }
 
