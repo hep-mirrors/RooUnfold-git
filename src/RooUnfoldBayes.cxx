@@ -113,7 +113,7 @@ RooUnfoldBayesT<Hist,Hist2D>::CopyData (const RooUnfoldBayesT<Hist,Hist2D>& rhs)
 template<class Hist,class Hist2D> void
 RooUnfoldBayesT<Hist,Hist2D>::Unfold() const
 {
-  
+  int nt = this->response()->Vtruth().GetNrows();
   this->setup();
   if (this->verbose() >= 2) {
     Print();
@@ -123,8 +123,9 @@ RooUnfoldBayesT<Hist,Hist2D>::Unfold() const
   unfold();
   if (this->verbose() >= 2) Print();
   this->_cache._rec.ResizeTo(this->_nc);
+  assert_compat(this->_cache._rec,this->_nbarCi);
   this->_cache._rec = this->_nbarCi;
-  this->_cache._rec.ResizeTo(this->_nt);  // drop fakes in final bin
+  this->_cache._rec.ResizeTo(nt);  // drop fakes in final bin
   this->_cache._unfolded= true;
   this->_cache._haveCov=  false;
 }
@@ -132,8 +133,9 @@ RooUnfoldBayesT<Hist,Hist2D>::Unfold() const
 template<class Hist,class Hist2D> void
 RooUnfoldBayesT<Hist,Hist2D>::GetCov() const
 {
+  int nt = this->response()->Vtruth().GetNrows();
   getCovariance();
-  this->_cache._cov.ResizeTo (this->_nt, this->_nt);  // drop fakes in final bin
+  this->_cache._cov.ResizeTo (nt, nt);  // drop fakes in final bin
   this->_cache._haveCov = true;
 }
 
@@ -150,13 +152,16 @@ RooUnfoldBayesT<Hist,Hist2D>::GetSettings() const
 template<class Hist,class Hist2D> void
 RooUnfoldBayesT<Hist,Hist2D>::setup() const
 {
-  this->_nc = this->_nt;
-  this->_ne = this->_nm;
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();
+  
+  this->_nc = nt;
+  this->_ne = nm;
 
   this->_nEstj.ResizeTo(this->_ne);
   this->_nEstj= this->Vmeasured();
 
-  this->_nCi.ResizeTo(this->_nt);
+  this->_nCi.ResizeTo(nt);
   
   // If an additional truth distribution is defined then use that as prior
   // guess. Otherwise, use the truth of the response matrix.
@@ -166,7 +171,8 @@ RooUnfoldBayesT<Hist,Hist2D>::setup() const
     this->_nCi= this->_res->Vtruth();
   }
 
-  this->_Nji.ResizeTo(this->_ne,this->_nt);
+  this->_Nji.ResizeTo(this->_ne,nt);
+  assert_compat(this->_Nji,this->_res->Mresponse(false));
   this->_Nji = this->_res->Mresponse(false);
 
   if (this->_res->HasFakes() && this->_handleFakes) {
@@ -177,7 +183,7 @@ RooUnfoldBayesT<Hist,Hist2D>::setup() const
     this->_nCi.ResizeTo(this->_nc);
     this->_nCi[this->_nc-1]= nfakes;
     this->_Nji.ResizeTo(this->_ne,this->_nc);
-    for (int i= 0; i<this->_nm; i++) this->_Nji(i,this->_nc-1)= fakes[i];
+    for (int i= 0; i<nm; i++) this->_Nji(i,this->_nc-1)= fakes[i];
   }
 
   this->_nbarCi.ResizeTo(this->_nc);
@@ -243,7 +249,9 @@ RooUnfoldBayesT<Hist,Hist2D>::unfold() const
 
     // update prior from previous iteration
     if (kiter>0) {
+      assert_compat(this->_P0C,PbarCi);
       this->_P0C = PbarCi;
+      this->_N0C,_nbartrue;
       this->_N0C = this->_nbartrue;
     }
 

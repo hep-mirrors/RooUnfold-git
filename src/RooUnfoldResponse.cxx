@@ -48,7 +48,6 @@
 #include "TH1.h"
 #include "TH2.h"
 
-
 using namespace RooUnfolding;
 
 #if ROOT_VERSION_CODE >= ROOT_VERSION(5,18,0)
@@ -67,7 +66,7 @@ template<class Hist, class Hist2D>
 class RooUnfoldFoldingFunction {
 public:
   RooUnfoldFoldingFunction(const RooUnfoldResponseT<Hist,Hist2D>* res, TF1* func, Double_t eps=1e-12, bool verbose=false)
-    : _res(res), _func(func), _eps(eps), _verbose(verbose), _fvals(_res->GetNbinsMeasured()) {
+    : _res(res), _func(func), _eps(eps), _verbose(verbose), _fvals(_res->Vmeasured().GetNrows()) {
     _ndim= dynamic_cast<TF3*>(_func) ? 3 :
       dynamic_cast<TF2*>(_func) ? 2 : 1;
     if (_ndim>=2 && eps==1e-12) eps= 0.000001;
@@ -77,10 +76,10 @@ public:
   double operator() (double* x, double* p) const {
     const Hist* mes= _res->Hmeasured();
     Int_t bin;
-    if      (_ndim==1) bin= findBin (mes, x[0]);
-    else if (_ndim==2) bin= findBin (mes, x[0], x[1]);
-    else               bin= findBin (mes, x[0], x[1], x[2]);
-    if (bin<0 || bin>=_res->GetNbinsMeasured()) return 0.0;
+    if      (_ndim==1) bin= RooUnfolding::findBin (mes, x[0]);
+    else if (_ndim==2) bin= RooUnfolding::findBin (mes, x[0], x[1]);
+    else               bin= RooUnfolding::findBin (mes, x[0], x[1], x[2]);
+    if (bin<0 || bin>=_res->Vmeasured().GetNrows()) return 0.0;
     for (Int_t i=0, n=_func->GetNpar(); i<n; i++) {
       if (p[i] == _func->GetParameter(i)) continue;
       _func->SetParameters(p);
@@ -101,7 +100,7 @@ private:
       cout << " f=";
     }
     _fvals.Zero();
-    for (Int_t i=0, n=_res->GetNbinsTruth(); i<n; i++) {
+    for (Int_t i=0, n=_res->Vtruth().GetNrows(); i<n; i++) {
       Int_t jx, jy, jz;
       binXYZ(tru,i,jx,jy,jz);
       Double_t fv;
@@ -141,7 +140,7 @@ private:
         }
       }
       if (_verbose) cout << " " << fv;
-      for (Int_t ibin=0, m=_res->GetNbinsMeasured(); ibin<m; ibin++) {
+      for (Int_t ibin=0, m=_res->Vmeasured().GetNrows(); ibin<m; ibin++) {
         _fvals[ibin] += fv * (*_res)(ibin,i);
       }
     }
@@ -158,9 +157,9 @@ private:
 #endif  
 
 template <class Hist, class Hist2D> void
-RooUnfoldResponseT<Hist,Hist2D>::setup()
+RooUnfoldResponseT<Hist,Hist2D>::Init()
 {
-  _tru= _mes= _fak= _tru_m = 0;
+  _tru= _mes= _fak = 0;
   _res= 0;
   this->ClearCache();
   SetNameTitleDefault ("response", "Response");
@@ -169,17 +168,19 @@ RooUnfoldResponseT<Hist,Hist2D>::setup()
 template <class Hist, class Hist2D> void
 RooUnfoldResponseT<Hist,Hist2D>::ClearCache() const
 {
-  _cache = Cache();
-  _cached= false;
+  if(Cached()){
+    _cache = Cache();
+    _cached= false;
+  }
 }
 
 template <class Hist, class Hist2D> Hist2D*
 RooUnfoldResponseT<Hist,Hist2D>::HresponseNoOverflow() const
 {
   const Hist2D* res = Hresponse();
-  TVectorD vals(h2v<Hist>(res,_overflow,_density));
-  TVectorD errs(h2ve<Hist>(res,_overflow,_density));  
-  return createHist<Hist2D>(vals,errs,name(res),title(res),vars(res),_overflow);
+  auto vals(h2m<Hist2D>(res,_overflow,_density));
+  auto errs(h2me<Hist2D>(res,_overflow,_density));  
+  return createHist<Hist2D,Hist2D>(vals,errs,name(res),title(res),vars(res),_overflow);
 }
 
 template <class Hist, class Hist2D> void
@@ -258,7 +259,7 @@ RooUnfoldResponseT<Hist,Hist2D>::ApplyToTruth (const Hist* truth, const char* na
 
   // If no truth histogram input, use training truth
   // If truth histogram input, make sure its binning is correct
-  TVectorD resultvect;;
+  TVectorD resultvect;
   if (truth) {
     if (nBins(truth,RooUnfolding::X) != nBins(_tru,RooUnfolding::X) ||
         nBins(truth,RooUnfolding::Y) != nBins(_tru,RooUnfolding::Y) ||
@@ -311,7 +312,8 @@ RooUnfoldResponseT<Hist,Hist2D>::MakeFoldingFunction (TF1* func, Double_t eps, B
   else
     f= new TF1 (name, ROOT::Math::ParamFunctor(ff),
                 func ->GetXmin(), func ->GetXmax(), np);
-  f->SetNpx (GetNbinsMeasured()<=2 ? 4 : GetNbinsMeasured()==3 ? 6 : GetNbinsMeasured());  // TF1 requires Npx>=4
+  int nm = Vmeasured().GetNrows();
+  f->SetNpx (nm<=2 ? 4 : nm==3 ? 6 : nm);  // TF1 requires Npx>=4
   // Copy parameters in case we set them in func
   f->SetParameters (func->GetParameters());
   f->SetParErrors  (func->GetParErrors());
@@ -409,7 +411,7 @@ RooUnfoldResponseT<Hist,Hist2D>::RooUnfoldResponseT()
   : TNamed()
 {
   //!default constructor. Use setup() to set values.
-  this->setup();
+  this->Init();
 }
 
 template<class Hist, class Hist2D>
@@ -417,7 +419,7 @@ RooUnfoldResponseT<Hist,Hist2D>::RooUnfoldResponseT(const char*    name, const c
   : TNamed(name,title)
 {
   //! default named constructor. Use setup() to set values.
-  this->setup();
+  this->Init();
 }
 
 template<class Hist, class Hist2D>
@@ -425,17 +427,15 @@ RooUnfoldResponseT<Hist,Hist2D>::RooUnfoldResponseT(const TString& name, const T
   : TNamed(name,title)
 {
   //! default named constructor. Use setup() to set values.
-  this->setup();
+  this->Init();
 }
 
 template<class Hist, class Hist2D>
 RooUnfoldResponseT<Hist,Hist2D>::RooUnfoldResponseT(const RooUnfoldResponseT<Hist,Hist2D>& rhs) : 
   TNamed(rhs.GetName(),rhs.GetTitle()),
   _mes(clone(rhs._mes)),
-  _mestru(clone(rhs._mestru)),
   _fak(clone(rhs._fak)),      
   _tru(clone(rhs._tru)),
-  _tru_m(clone(rhs._tru_m)),
   _res(clone(rhs._res)),
   _overflow(rhs._overflow),
   _density(rhs._density)
@@ -471,30 +471,15 @@ template<class Hist, class Hist2D>
 Int_t RooUnfoldResponseT<Hist,Hist2D>::GetDimensionMeasured() const
 {
   //! Dimensionality of the measured distribution (1=1D, 2=2D, 3=3D)
-  return ::dim(this->_mes);
+  return RooUnfolding::dim(this->_mes);
 }
 
 template<class Hist, class Hist2D>
 Int_t RooUnfoldResponseT<Hist,Hist2D>::GetDimensionTruth() const
 {
   //! Dimensionality of the truth distribution (1=1D, 2=2D, 3=3D)
-  return ::dim(this->_tru);  
+  return RooUnfolding::dim(this->_tru);  
 }
-
-template<class Hist, class Hist2D>
-Int_t RooUnfoldResponseT<Hist,Hist2D>::GetNbinsMeasured() const
-{
-  //! Total number of bins in the measured distribution
-  return ::nBins(this->_mes,_overflow);
-}
-
-template<class Hist, class Hist2D>
-Int_t RooUnfoldResponseT<Hist,Hist2D>::GetNbinsTruth() const
-{
-  //! Total number of bins in the truth distribution
-  return ::nBins(this->_tru,_overflow);
-}
-
 
 template<class Hist, class Hist2D>
 const Hist* RooUnfoldResponseT<Hist,Hist2D>::Hmeasured() const
@@ -568,7 +553,6 @@ const TVectorD& RooUnfoldResponseT<Hist,Hist2D>::Vmeasured() const
 {
   //! Measured distribution as a TVectorD
   if (!_cache._vMes) _cached= (_cache._vMes= new TVectorD(h2v  (_mes, _overflow,_density)));
-  if(_cache._vMes->GetNrows() != this->GetNbinsMeasured()) throw std::runtime_error("Error in RooUndfoldResponseT::Vmeasured: invalid dimensionality in measured vector!");
   return *_cache._vMes;
 }
 
@@ -623,11 +607,10 @@ const TVectorD& RooUnfoldResponseT<Hist,Hist2D>::Vfakes() const
 {
   //! Fakes distribution as a TVectorD
   if(!_fak){
-    _cached = (_cache._vFak = new TVectorD(this->GetNbinsMeasured()) );
+    _cached = (_cache._vFak = new TVectorD(this->Vmeasured().GetNrows()));
   } else {
     if (!_cache._vFak) _cached= (_cache._vFak= new TVectorD(h2v  (_fak, _overflow,_density)));
   }
-  if(_cache._vFak->GetNrows() != this->GetNbinsMeasured()) throw std::runtime_error("invalid dimensionality in fakes vector!");
   return *_cache._vFak;
 }
 
@@ -636,7 +619,6 @@ const TVectorD& RooUnfoldResponseT<Hist,Hist2D>::Emeasured() const
 {
   //! Measured distribution errors as a TVectorD
   if (!_cache._eMes) _cached= (_cache._eMes= new TVectorD(h2ve (_mes, _overflow,_density)));
-  if(_cache._eMes->GetNrows() != this->GetNbinsMeasured()) throw std::runtime_error("invalid dimensionality in measured uncertainty vector!");
   return *_cache._eMes;
 }
 
@@ -645,7 +627,6 @@ const TVectorD& RooUnfoldResponseT<Hist,Hist2D>::Vtruth() const
 {
   //! Truth distribution as a TVectorD
   if (!_cache._vTru) _cached= (_cache._vTru= new TVectorD(h2v  (_tru, _overflow,_density))); 
-  if(_cache._vTru->GetNrows() != this->GetNbinsTruth()) throw std::runtime_error("invalid dimensionality in truth vector!");
   return *_cache._vTru;
 }
 
@@ -654,7 +635,6 @@ const TVectorD& RooUnfoldResponseT<Hist,Hist2D>::Etruth() const
 {
   //! Truth distribution errors as a TVectorD
   if (!_cache._eTru) _cached= (_cache._eTru= new TVectorD(h2ve (_tru, _overflow,_density))); 
-  if(_cache._eTru->GetNrows() != this->GetNbinsTruth()) throw std::runtime_error("invalid dimensionality in truth uncertainty vector!");
   return *_cache._eTru;
 }
 
@@ -908,12 +888,10 @@ RooUnfoldResponse::Reset()
 {
   //! Resets object to initial state.
   if(_mes) delete  _mes;
-  if(_tru_m) delete _tru_m;
-  if(_mestru) delete _mestru;
   if(_tru) delete  _tru;
   if(_res) delete  _res;
   if(_fak) delete _fak;
-  setup();
+  Init();
   return *this;
 }
 
@@ -977,8 +955,6 @@ void RooUnfoldResponse::Add(const RooUnfoldResponse& rhs)
   assert (_res != 0 && rhs._res != 0);
   if (Cached()) ClearCache();
   _mes->Add(rhs._mes);
-  _tru_m->Add(rhs._tru_m);
-  _mestru->Add(rhs._mestru);
   _fak->Add(rhs._fak);
   _tru->Add(rhs._tru);
   _res->Add(rhs._res);
@@ -1015,8 +991,6 @@ RooUnfoldResponse::Setup(Int_t nm, Double_t mlo, Double_t mhi, Int_t nt, Double_
   _mes= createHist<TH1>("measured", "Measured",   Variable<TH1>(nm, mlo, mhi,"xm"));
   _fak= createHist<TH1>("fakes",    "Fakes",      Variable<TH1>(nm, mlo, mhi,"xm"));
   _tru= createHist<TH1>("truth",    "Truth",      Variable<TH1>(nt, tlo, thi,"xt"));
-  _tru_m= createHist<TH1>("truth_m","truth_m",Variable<TH1>(nm, tlo, thi,"xt"));
-  _mestru= createHist<TH1>("meastru","Meastru",Variable<TH1>(nm, tlo, thi,"xt"));
   _res= createHist<TH2>("response", "Response", Variable<TH2>(nm, mlo, mhi, "xm"), Variable<TH2>(nt, tlo, thi, "xt"));
   return *this;
 }
@@ -1029,13 +1003,9 @@ RooUnfoldResponse::Setup(const TH1* measured, const TH1* truth)
   _mes= clone(measured);
   _fak= clone(measured);
   _tru= clone(truth);
-  _tru_m= clone(measured);
-  _mestru=clone(measured);
   _mes->Reset();
   _fak->Reset();
   _tru->Reset();
-  _tru_m->Reset();
-  _mestru->Reset();
   if (_overflow && (GetDimensionMeasured() > 1 || GetDimensionTruth() > 1)) {
     cerr << "UseOverflow setting ignored for multi-dimensional distributions" << endl;
     _overflow= 0;
@@ -1043,8 +1013,10 @@ RooUnfoldResponse::Setup(const TH1* measured, const TH1* truth)
 
   SetNameTitleDefault();
 
-  _res = new TH2D(GetName(), GetTitle(), _mes->GetNbinsX() * _mes->GetNbinsY() * _mes->GetNbinsZ(), 0, 1, _tru->GetNbinsX() * _tru->GetNbinsY() * _tru->GetNbinsZ(), 0, 1);
-  _res->Sumw2();
+  auto mes_vars = RooUnfolding::vars(measured);
+  auto tru_vars = RooUnfolding::vars(truth);
+  _res = createHist<TH2, TH1>(GetName(), GetTitle(), mes_vars, tru_vars);
+  _fak= createHist<TH1>("fakes","Fakes",mes_vars);
 
   return *this;
 }
@@ -1083,14 +1055,7 @@ RooUnfoldResponse::Setup(const TH1* measured, const TH1* truth, const TH2* respo
   double tlow = truth->GetXaxis()->GetXmin();
   double thigh = truth->GetXaxis()->GetXmax();
 
-  _tru_m= createHist<TH1>("truth_m","truth_m",Variable<TH1>(GetNbinsMeasured(), tlow, thigh,"xt"));
-  _mestru= createHist<TH1>("meastru","Meastru",Variable<TH1>(GetNbinsMeasured(), tlow, thigh,"xt"));
-  _fak= createHist<TH1>("fakes","Fakes",Variable<TH1>(GetNbinsMeasured(), mlow, mhigh,"xm"));
-
-  if (GetNbinsMeasured() != nBins(_res,RooUnfolding::X) || GetNbinsTruth() != nBins(_res,RooUnfolding::Y)) {
-    cerr << "Warning: RooUnfoldResponse<class TH1, class TH2> measured X truth is " << GetNbinsMeasured() << " X " << GetNbinsTruth()
-         << ", but matrix is " << nBins(_res,RooUnfolding::X)<< " X " << nBins(_res,RooUnfolding::Y) << endl;
-  }
+  _fak= createHist<TH1>("fakes","Fakes",Variable<TH1>(nBins(response,RooUnfolding::X), mlow, mhigh,"xm"));
 
   if (!measured || ::entries(_mes) == 0.0) {
     // Similar to _res->ProjectionX() but without stupid reset of existing histograms
@@ -1116,23 +1081,15 @@ RooUnfoldResponse::Setup(const TH1* measured, const TH1* truth, const TH2* respo
  Int_t
 RooUnfoldResponse::Fill (Double_t xr, Double_t xt, Double_t w)
 {
-
   //! Fill 1D Response Matrix
   assert (_mes != 0 && _tru != 0);
   assert (GetDimensionMeasured()==1 && GetDimensionTruth()==1);
-  if (Cached()) ClearCache();
+  assert (nBins(_mes) * nBins(_tru) == nBins (_res));  
+  ClearCache();
   Int_t bin_m = fill(_mes,xr,w);
   Int_t bin_t = fill(_tru,xt,w);
-  if (GetNbinsMeasured() != GetNbinsTruth()){
-    bin_t = fill(_tru_m,xt,w);
-  }
-
-  // Fill a histogram with events that are reconstructed
-  // in the same truth bin.
-  if (bin_m == bin_t){
-    fill(_mestru,xr,w);
-  }
-  return fill(_res,xr,xt,w);
+  int retval = fill(_res,xr,xt,w);
+  return retval;
 }
 
  Int_t
@@ -1141,10 +1098,11 @@ RooUnfoldResponse::Fill (Double_t xr, Double_t yr, Double_t xt, Double_t yt, Dou
   //! Fill 2D Response Matrix
   assert (_mes != 0 && _tru != 0);
   assert (GetDimensionMeasured()==2 && GetDimensionTruth()==2);
-  if (Cached()) ClearCache();
+  assert (nBins(_mes) * nBins(_tru) == nBins (_res));
+  ClearCache();
   fill((TH2*)_mes,xr, yr, w);
   fill((TH2*)_tru,xt, yt, w);
-  return fill(_res,binCenter(_res,findBin (_mes, xr, yr)+1,RooUnfolding::X),binCenter(_res,findBin (_tru, xt, yt)+1,RooUnfolding::Y), w);
+  return fill(_res,binCenter(_res,RooUnfolding::findBin (_mes, xr, yr)+1,RooUnfolding::X),binCenter(_res,RooUnfolding::findBin (_tru, xt, yt)+1,RooUnfolding::Y), w);
 }
 
  Int_t
@@ -1153,10 +1111,11 @@ RooUnfoldResponse::Fill (Double_t xr, Double_t yr, Double_t zr, Double_t xt, Dou
   //! Fill 3D Response Matrix
   assert (_mes != 0 && _tru != 0);
   assert (GetDimensionMeasured()==3 && GetDimensionTruth()==3);
-  if (Cached()) ClearCache();
+  assert (nBins(_mes) * nBins(_tru) == nBins (_res));  
+  ClearCache();
   fill(_mes,xr, yr, zr, w);
   fill(_tru,xt, yt, zt, w);
-  return fill(_res,binCenter(_res,findBin (_mes, xr, yr, zr)+1,RooUnfolding::X),binCenter(_res,findBin (_tru, xt, yt, zt)+1,RooUnfolding::Y), w);  
+  return fill(_res,binCenter(_res,RooUnfolding::findBin (_mes, xr, yr, zr)+1,RooUnfolding::X),binCenter(_res,RooUnfolding::findBin (_tru, xt, yt, zt)+1,RooUnfolding::Y), w);  
 }
 
 
@@ -1167,13 +1126,13 @@ RooUnfoldResponse::FindBin(const TH1* h, Double_t x, Double_t y, Double_t z)
   Int_t nx=   nBins(h,RooUnfolding::X);
   Int_t ny=   nBins(h,RooUnfolding::Y);
   Int_t nz=   nBins(h,RooUnfolding::Z);
-  Int_t binx= findBin(h,x,RooUnfolding::X) - 1;
+  Int_t binx= RooUnfolding::findBin(h,x,RooUnfolding::X) - 1;
   if (binx <  0)  return -1;
   if (binx >= nx) return nx*ny*nz;
-  Int_t biny= findBin(h,y,RooUnfolding::Y) - 1;
+  Int_t biny= RooUnfolding::findBin(h,y,RooUnfolding::Y) - 1;
   if (biny <  0)  return -1;
   if (biny >= ny) return nx*ny*nz;
-  Int_t binz= findBin(h,z,RooUnfolding::Z) - 1;
+  Int_t binz= RooUnfolding::findBin(h,z,RooUnfolding::Z) - 1;
   if (binz <  0)  return -1;
   if (binz >= nz) return nx*ny*nz;
   return binx + nx*(biny + ny*binz);
@@ -1185,7 +1144,7 @@ RooUnfoldResponse::Miss1D (Double_t xt, Double_t w)
   //! Fill missed event (not reconstructed due to detection inefficiencies) into 1D Response Matrix (with weight)
   assert (_tru != 0);
   assert (GetDimensionTruth()==1);
-  if (Cached()) ClearCache();
+  ClearCache();
   return fill(_tru, xt, w);
 }
 
@@ -1195,7 +1154,7 @@ RooUnfoldResponse::Miss2D (Double_t xt, Double_t yt, Double_t w)
   //! Fill missed event (not reconstructed due to detection inefficiencies) into 2D Response Matrix (with weight)
   assert (_tru != 0);
   assert (GetDimensionTruth()==2);
-  if (Cached()) ClearCache();
+  ClearCache();
   return fill(_tru, xt, yt, w);
 }
 
@@ -1205,7 +1164,7 @@ RooUnfoldResponse::Miss (Double_t xt, Double_t yt, Double_t zt, Double_t w)
   //! Fill missed event (not reconstructed due to detection inefficiencies) into 3D Response Matrix
   assert (_tru != 0);
   assert (GetDimensionTruth()==3);
-  if (Cached()) ClearCache();
+  ClearCache();
   return fill(_tru, xt, yt, zt, w);
 }
 
@@ -1215,7 +1174,7 @@ RooUnfoldResponse::Fake1D (Double_t xr, Double_t w)
   //! Fill fake event (reconstructed event with no truth) into 1D Response Matrix (with weight)
   assert (_fak != 0 && _mes != 0);
   assert (GetDimensionMeasured()==1);
-  if (Cached()) ClearCache();
+  ClearCache();
   fill(_mes,xr, w);
   return fill(_fak, xr, w);
 }
@@ -1226,7 +1185,7 @@ RooUnfoldResponse::Fake2D (Double_t xr, Double_t yr, Double_t w)
   //! Fill fake event (reconstructed event with no truth) into 2D Response Matrix (with weight)
   assert (_mes != 0);
   assert (GetDimensionMeasured()==2);
-  if (Cached()) ClearCache();
+  ClearCache();
   fill(_fak, xr, yr, w);
   return fill(_mes, xr, yr, w);
 }
@@ -1237,7 +1196,7 @@ RooUnfoldResponse::Fake (Double_t xr, Double_t yr, Double_t zr, Double_t w)
   //! Fill fake event (reconstructed event with no truth) into 3D Response Matrix
   assert (_mes != 0);
   assert (GetDimensionMeasured()==3);
-  if (Cached()) ClearCache();
+  ClearCache();
   fill(_mes, xr, yr, zr, w);
   return fill(_fak, xr, yr, zr, w);
 }
@@ -1274,7 +1233,7 @@ namespace {
   }
   
   template<class T> std::vector<T*> makeList(const RooAbsCollection* c){
-    std::vector<RooAbsArg*> vars;
+    std::vector<RooRealVar*> vars;
     makeList<T>(c,vars);
     return vars;
   }
@@ -1351,7 +1310,7 @@ RooFitUnfoldResponse::RooFitUnfoldResponse(const char* name, const char* title, 
   this->_mes = new RooFitHist(reco,obs_reco);
   this->_fak = fakes ? new RooFitHist(fakes,obs_reco) : 0;
   this->_tru = new RooFitHist(truth,obs_truth);
-  this->_res = new RooFitHist(response,::makeList<RooAbsArg>(obs));
+  this->_res = new RooFitHist(response,::makeList<RooRealVar>(obs));
   this->_overflow = 0;
   this->_density = density;
 }
@@ -1373,7 +1332,7 @@ RooUnfolding::RooFitHist* RooFitUnfoldResponse::makeHistSum(RooAbsReal* a, RooAb
 
 RooHistFunc* RooFitUnfoldResponse::makeHistFunc(RooDataHist* dhist){
   if(!dhist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_mes->dim(); ++i){
     if(dhist->get()->find(*this->_mes->obs(i))) v.push_back(this->_mes->obs(i));
   }
@@ -1388,7 +1347,7 @@ RooHistFunc* RooFitUnfoldResponse::makeHistFunc(RooDataHist* dhist){
 
 RooHistFunc* RooFitUnfoldResponse::makeHistFuncMeasured(const TH1* hist){
   if(!hist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_mes->dim(); ++i){
     v.push_back(this->_mes->obs(i));
   }
@@ -1397,7 +1356,7 @@ RooHistFunc* RooFitUnfoldResponse::makeHistFuncMeasured(const TH1* hist){
 }
 RooHistFunc* RooFitUnfoldResponse::makeHistFuncTruth(const TH1* hist){
   if(!hist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_tru->dim(); ++i){
     v.push_back(this->_tru->obs(i));
   }
@@ -1408,7 +1367,7 @@ RooHistFunc* RooFitUnfoldResponse::makeHistFuncTruth(const TH1* hist){
 
 RooAbsPdf* RooFitUnfoldResponse::makeHistPdf(RooDataHist* dhist){
   if(!dhist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_mes->dim(); ++i){
     if(dhist->get()->find(*this->_mes->obs(i))) v.push_back(this->_mes->obs(i));
   }
@@ -1423,7 +1382,7 @@ RooAbsPdf* RooFitUnfoldResponse::makeHistPdf(RooDataHist* dhist){
 
 RooAbsPdf* RooFitUnfoldResponse::makeHistPdfMeasured(const TH1* hist){
   if(!hist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_mes->dim(); ++i){
     v.push_back(this->_mes->obs(i));
   }
@@ -1433,7 +1392,7 @@ RooAbsPdf* RooFitUnfoldResponse::makeHistPdfMeasured(const TH1* hist){
 }
 RooAbsPdf* RooFitUnfoldResponse::makeHistPdfTruth(const TH1* hist){
   if(!hist) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_tru->dim(); ++i){
     v.push_back(this->_tru->obs(i));
   }
@@ -1451,7 +1410,7 @@ RooUnfolding::RooFitHist* RooFitUnfoldResponse::makeHistTruth(const TH1* hist){
 
 RooUnfolding::RooFitHist* RooFitUnfoldResponse::makeHist(RooAbsReal* object){
   if(!object) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   for(size_t i=0; i<this->_mes->dim(); ++i){
     if(object->dependsOn(*this->_mes->obs(i))) v.push_back(this->_mes->obs(i));
   }
@@ -1466,9 +1425,9 @@ RooUnfolding::RooFitHist* RooFitUnfoldResponse::makeHist(RooAbsReal* object){
 
 RooUnfolding::RooFitHist* RooFitUnfoldResponse::makeHist(RooDataHist* object){
   if(!object) return NULL;
-  std::vector<RooAbsArg*> v;
+  std::vector<RooRealVar*> v;
   TPRegexp obs("obs_.*");
-  makeList<RooAbsArg>(object->get(),v,&obs);
+  makeList<RooRealVar>(object->get(),v,&obs);
   return new RooUnfolding::RooFitHist(object,v);
 }
 

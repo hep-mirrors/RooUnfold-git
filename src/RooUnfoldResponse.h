@@ -40,8 +40,6 @@ public:
 
   Int_t        GetDimensionMeasured() const;   // Dimensionality of the measured distribution
   Int_t        GetDimensionTruth()    const;   // Dimensionality of the truth distribution
-  Int_t        GetNbinsMeasured()     const;   // Total number of bins in the measured distribution
-  Int_t        GetNbinsTruth()        const;   // Total number of bins in the truth distribution
 
   const Hist*   Hmeasured()            const;   // Measured distribution, including fakes
   Hist*         Hmeasured();                    // Measured distribution, including fakes
@@ -81,17 +79,15 @@ public:
 
 protected:
 
-  virtual void setup();
+  virtual void Init();
   virtual bool Cached() const;
   virtual void SetNameTitleDefault (const char* defname= 0, const char* deftitle= 0);
 
   // instance variables
 
   Hist*  _mes = 0;      // Measured histogram
-  Hist*  _mestru = 0;   // Histogram with events that were reconstructed in the same bin.
   Hist*  _fak = 0;      // Fakes    histogram
   Hist*  _tru = 0;      // Truth    histogra
-  Hist*  _tru_m = 0;    // Truth histogram with meas binning for the purity.
   Hist2D*_res = 0;      // Response histogram
   Int_t _overflow = 0; // Use histogram under/overflows if 1
   bool  _density = false;
@@ -146,42 +142,42 @@ public:
 
   // Set up an existing object
 
-  virtual RooUnfoldResponse& Reset ();  // clear an existing object
-  virtual RooUnfoldResponse& Setup (const RooUnfoldResponse& rhs);  // set up based on another instance
-  virtual RooUnfoldResponse& Setup (Int_t nb, Double_t xlo, Double_t xhi);  // set up simple 1D case with same binning, measured vs truth
-  virtual RooUnfoldResponse& Setup (Int_t nm, Double_t mlo, Double_t mhi, Int_t nt, Double_t tlo, Double_t thi);  // set up simple 1D case
-  virtual RooUnfoldResponse& Setup (const TH1* measured, const TH1* truth);  // set up - measured and truth only used for shape
-  virtual RooUnfoldResponse& Setup (const TH1* measured, const TH1* truth, const TH2* response);  // set up from already-filled histograms
+  RooUnfoldResponse& Reset ();  // clear an existing object
+
+  RooUnfoldResponse& Setup (const RooUnfoldResponse& rhs);  // set up based on another instance
+  RooUnfoldResponse& Setup (Int_t nb, Double_t xlo, Double_t xhi);  // set up simple 1D case with same binning, measured vs truth
+  RooUnfoldResponse& Setup (Int_t nm, Double_t mlo, Double_t mhi, Int_t nt, Double_t tlo, Double_t thi);  // set up simple 1D case
+  RooUnfoldResponse& Setup (const TH1* measured, const TH1* truth);  // set up - measured and truth only used for shape
+  RooUnfoldResponse& Setup (const TH1* measured, const TH1* truth, const TH2* response);  // set up from already-filled histograms
 
   // Fill with training data
-
   static Int_t   FindBin(const TH1*  h, Double_t x);  // return vector index for bin containing (x)
   static Int_t   FindBin(const TH1*  h, Double_t x, Double_t y);  // return vector index for bin containing (x,y)
   static Int_t   FindBin(const TH1*  h, Double_t x, Double_t y, Double_t z);  // return vector index for bin containing (x,y,z)
 
-  virtual Int_t Fill (Double_t xr, Double_t xt, Double_t w= 1.0);  // Fill 1D Response Matrix
-  virtual Int_t Fill (Double_t xr, Double_t yr, Double_t xt, Double_t yt, Double_t w= 1.0);  // Fill 2D Response Matrix
-  virtual Int_t Fill (Double_t xr, Double_t yr, Double_t zr, Double_t xt, Double_t yt, Double_t zt, Double_t w= 1.0);  // Fill 3D Response Matrix
+  Int_t Fill (Double_t xr, Double_t xt, Double_t w= 1.0);  // Fill 1D Response Matrix
+  Int_t Fill (Double_t xr, Double_t yr, Double_t xt, Double_t yt, Double_t w= 1.0);  // Fill 2D Response Matrix
+  Int_t Fill (Double_t xr, Double_t yr, Double_t zr, Double_t xt, Double_t yt, Double_t zt, Double_t w= 1.0);  // Fill 3D Response Matrix
 
-          Int_t Miss (Double_t xt);  // Fill missed event into 1D Response Matrix
-          Int_t Miss (Double_t xt, Double_t w);  // Fill missed event into 1D (with weight) or 2D Response Matrix
-          Int_t Miss (Double_t xt, Double_t yt, Double_t w);  // Fill missed event into 2D (with weight) or 3D Response Matrix
-  virtual Int_t Miss (Double_t xt, Double_t yt, Double_t zt, Double_t w);  // Fill missed event into 3D Response Matrix
+  Int_t Miss (Double_t xt);  // Fill missed event into 1D Response Matrix
+  Int_t Miss (Double_t xt, Double_t w);  // Fill missed event into 1D (with weight) or 2D Response Matrix
+  Int_t Miss (Double_t xt, Double_t yt, Double_t w);  // Fill missed event into 2D (with weight) or 3D Response Matrix
+  Int_t Miss (Double_t xt, Double_t yt, Double_t zt, Double_t w);  // Fill missed event into 3D Response Matrix
 
-          Int_t Fake (Double_t xr);  // Fill fake event into 1D Response Matrix
-          Int_t Fake (Double_t xr, Double_t w);  // Fill fake event into 1D (with weight) or 2D Response Matrix
-          Int_t Fake (Double_t xr, Double_t yr, Double_t w);  // Fill fake event into 2D (with weight) or 3D Response Matrix
-  virtual Int_t Fake (Double_t xr, Double_t yr, Double_t zr, Double_t w);  // Fill fake event into 3D Response Matrix
+  Int_t Fake (Double_t xr);  // Fill fake event into 1D Response Matrix
+  Int_t Fake (Double_t xr, Double_t w);  // Fill fake event into 1D (with weight) or 2D Response Matrix
+  Int_t Fake (Double_t xr, Double_t yr, Double_t w);  // Fill fake event into 2D (with weight) or 3D Response Matrix
+  Int_t Fake (Double_t xr, Double_t yr, Double_t zr, Double_t w);  // Fill fake event into 3D Response Matrix
 
-  virtual void Add (const RooUnfoldResponse& rhs);
-  virtual Long64_t Merge (TCollection* others);
-  virtual Long64_t FakeEntries() const;                // Return number of bins with fakes
+  void Add (const RooUnfoldResponse& rhs);
+  Long64_t Merge (TCollection* others);
+  Long64_t FakeEntries() const;                // Return number of bins with fakes
 
 private:
-  virtual Int_t Miss1D (Double_t xt, Double_t w= 1.0);  // Fill missed event into 1D Response Matrix (with weight)
-  virtual Int_t Miss2D (Double_t xt, Double_t yt, Double_t w= 1.0);  // Fill missed event into 2D Response Matrix (with weight)
-  virtual Int_t Fake1D (Double_t xr, Double_t w= 1.0);  // Fill fake event into 1D Response Matrix (with weight)
-  virtual Int_t Fake2D (Double_t xr, Double_t yr, Double_t w= 1.0);  // Fill fake event into 2D Response Matrix (with weight)
+  Int_t Miss1D (Double_t xt, Double_t w= 1.0);  // Fill missed event into 1D Response Matrix (with weight)
+  Int_t Miss2D (Double_t xt, Double_t yt, Double_t w= 1.0);  // Fill missed event into 2D Response Matrix (with weight)
+  Int_t Fake1D (Double_t xr, Double_t w= 1.0);  // Fill fake event into 1D Response Matrix (with weight)
+  Int_t Fake2D (Double_t xr, Double_t yr, Double_t w= 1.0);  // Fill fake event into 2D Response Matrix (with weight)
 
   ClassDef (RooUnfoldResponse, 1) // Respose Matrix
 };

@@ -111,13 +111,16 @@ RooUnfoldIdsT<Hist,Hist2D>::CopyData(const RooUnfoldIdsT&rhs)
 template<class Hist, class Hist2D> void
 RooUnfoldIdsT<Hist,Hist2D>::Unfold() const
 {
-
   // Data and MC reco/truth must have the same number of bins
+
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
    if (this->_res->HasFakes()) {
-      _nb = this->_nt+1;
-      if (this->_nm>_nb) _nb = this->_nm;
+      _nb = nt+1;
+      if (nm>_nb) _nb = nm;
    } else {
-      _nb = this->_nm > this->_nt ? this->_nm : this->_nt;
+      _nb = nm > nt ? nm : nt;
    }
 
    // A vector is retrieved with the right under/overflow
@@ -149,7 +152,7 @@ RooUnfoldIdsT<Hist,Hist2D>::Unfold() const
      RooUnfolding::resizeVector(fakes, _nb);     
      Double_t nfakes = fakes.Sum();
      if (this->_verbose >= 1) std::cout << "Add truth bin for " << nfakes << " fakes" << std::endl;
-     for (Int_t i = 0; i < this->_nm; ++i){
+     for (Int_t i = 0; i < nm; ++i){
 	mres(i,lastidx) = fakes[i];
       }
       vtruth(lastidx) = nfakes;
@@ -157,9 +160,9 @@ RooUnfoldIdsT<Hist,Hist2D>::Unfold() const
    // Perform IDS unfolding.
    TVectorD *rechist = GetIDSUnfoldedSpectrum(vtrain, vtruth, mres, vmeas, verror, _niter);
 
-   this->_cache._rec.ResizeTo(this->_nt);
+   this->_cache._rec.ResizeTo(nt);
 
-   for (Int_t i = 0; i < this->_nt; ++i) {
+   for (Int_t i = 0; i < nt; ++i) {
      this->_cache._rec[i] = (*rechist)[i];
    }
 
@@ -176,10 +179,13 @@ template<class Hist,class Hist2D>void
 RooUnfoldIdsT<Hist,Hist2D>::GetCov() const
 {
   //! Get covariance matrix
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
    TMatrixD *meascov = new TMatrixD(_nb, _nb);
    const TMatrixD& cov = this->GetMeasuredCov();
-   for (Int_t i = 0; i < this->_nm; ++i)
-     for (Int_t j = 0; j < this->_nm; ++j){
+   for (Int_t i = 0; i < nm; ++i)
+     for (Int_t j = 0; j < nm; ++j){
        (*meascov)[i][j] = cov(i,j);
      }
    // Need to fill _cov with unfolded result
@@ -187,9 +193,9 @@ RooUnfoldIdsT<Hist,Hist2D>::GetCov() const
 
    TMatrixD *adetCov     = GetAdetCovMatrix(this->_NToys);
 
-   this->_cache._cov.ResizeTo(this->_nt, this->_nt);
-   for (Int_t i = 0; i < this->_nt; i++) {
-      for (Int_t j = 0; j < this->_nt; ++j) {
+   this->_cache._cov.ResizeTo(nt, nt);
+   for (Int_t i = 0; i < nt; i++) {
+      for (Int_t j = 0; j < nt; ++j) {
 	this->_cache._cov(i,j) = (*unfoldedCov)[i][j] + (*adetCov)[i][j];
       }
    }

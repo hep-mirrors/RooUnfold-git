@@ -90,7 +90,7 @@ namespace RooUnfolding {
   template<class Hist> const char* varname(const Hist* h, Dimension d);
   template<class Hist> void printHistogram(const Hist* h);
   template<class Hist> void printTable (std::ostream& o, const Hist* hTrainTrue, const Hist* hTrain, const Hist* hTrue, const Hist* hMeas, const Hist* hReco, Bool_t _overflow=kFALSE, RooUnfolding::ErrorTreatment withError=RooUnfolding::kDefault, Double_t chi_squ=-999.0);
-  template<class Hist, class V> V subtract(const TVectorD& orig, const Hist* hist, bool overflow);
+  template<class Hist, class V> V subtract(const TVectorD& orig, const Hist* hist, bool overflow, bool correctDensity);
 
   template<class Hist> int findBin(const Hist* h, double x, RooUnfolding::Dimension d);
   template<class Hist1D> int findBin(const Hist1D* h, Double_t x);
@@ -107,20 +107,21 @@ namespace RooUnfolding {
   template<class Hist2D> TMatrixD h2m  (const Hist2D* h, bool overflow = false, bool correctDensity=false);  
   template<class Hist2D> TMatrixD h2me  (const Hist2D* h, bool overflow = false, bool correctDensity=false);  
 
-  template<class Hist2D> Hist2D* createHist(const char* name, const char* title, const Variable<Hist2D>& x, const Variable<Hist2D>& y);
-  template<class Hist2D> Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const Variable<Hist2D>& x, const Variable<Hist2D>& y);
-  template<class Hist2D> Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const Variable<Hist2D>& x, const Variable<Hist2D>& y);
-  template<class Hist2D> Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<Hist2D>>& vars, bool overflow=false);
-  template<class Hist2D> Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<Hist2D>>& vars, bool overflow=false);
+  template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const Variable<AnyHist>& x);
+  template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const std::vector<Variable<AnyHist> >& x);
+  template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, const std::vector<Variable<AnyHist> >& y);
+  template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const Variable<AnyHist>& x, const Variable<AnyHist>& y);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, bool overflow = false);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, bool overflow = false);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const Variable<AnyHist>& x, const Variable<AnyHist>& y, bool overflow = false);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const Variable<AnyHist>& x, const Variable<AnyHist>& y, bool overflow = false);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, const std::vector<Variable<AnyHist> >& y, bool overflow = false);
+  template<class Hist2D, class AnyHist>  Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, const std::vector<Variable<AnyHist> >& y, bool overflow = false);
+  template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow = false);
+  template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const char* name, const char* title, const Variable<AnyHist>& x, bool overflow = false);
+  template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow = false);
+  template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const Variable<AnyHist>& x, bool overflow = false);
   
-  template<class Hist> Hist* createHist(const char* name, const char* title, const std::vector<Variable<Hist>>& x);
-  template<class Hist> Hist* createHist(const char* name, const char* title, const Variable<Hist>& x) { return createHist<Hist>(name,title,std::vector<Variable<Hist>>{x}); }
-  template<class Hist> Hist* createHist(const TVectorD& vec, const char* name, const char* title, const std::vector<Variable<Hist>>& x, bool overflow=false);
-  template<class Hist> Hist* createHist(const TVectorD& vec, const char* name, const char* title, const Variable<Hist>& x, bool overflow=false);
-  template<class Hist> Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<Hist>>& x, bool overflow=false);
-  template<class Hist> Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const Variable<Hist>& x, bool overflow=false);
-  template<class Hist> Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const Hist* origHist, bool overflow=false);
-
   void printTable (std::ostream& o, const TVectorD& vTrainTrue, const TVectorD& vTrain, const TVectorD& vMeas, const TVectorD& vReco);
   void printTable (std::ostream& o, int dim, int ntxb, int ntyb,
                    const TVectorD& vTrainTrue, const TVectorD& vTrain, const TVectorD& vTrue,const TVectorD& vMeas, const TVectorD& vReco,
@@ -150,7 +151,10 @@ namespace RooUnfolding {
   void randomize(TVectorD& values, TRandom& rnd);
   void randomize(TVectorD& values, const TVectorD& errors, TRandom& rnd);
   void randomize(TMatrixD& values, const TMatrixD& errors, TRandom& rnd);
-  void mNorm (TMatrixD& m, const TVectorD& norm);  
+  void mNorm (TMatrixD& m, const TVectorD& norm);
+
+  void assert_compat(const TMatrixD& a, const TMatrixD& b);
+  void assert_compat(const TVectorD& a, const TVectorD& b);  
 }
 
 #include "RooUnfoldHelpers.tpp"

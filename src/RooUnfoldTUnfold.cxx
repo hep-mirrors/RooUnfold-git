@@ -171,8 +171,11 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::GetLogTauY() const
 template<class Hist,class Hist2D>void
 RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 {
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
   // Does the unfolding. Uses the optimal value of the unfolding parameter unless a value has already been set using FixTau
-  if (this->_nm<this->_nt)     std::cerr << "Warning: fewer measured bins than truth bins. TUnfold may not work correctly." << std::endl;
+  if (nm<nt)     std::cerr << "Warning: fewer measured bins than truth bins. TUnfold may not work correctly." << std::endl;
   if (this->_covMes) std::cerr << "Warning: TUnfold does not account for bin-bin correlations on measured input"    << std::endl;
 
   Bool_t oldstat= TH1::AddDirectoryStatus();
@@ -188,12 +191,12 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 
   TH1::AddDirectory (oldstat);
   // Add inefficiencies to measured overflow bin
-  for (Int_t j= 1; j<=this->_nt; j++) {
+  for (Int_t j= 1; j<=nt; j++) {
     Double_t ntru= 0.0;
-    for (Int_t i= 1; i<=this->_nm; i++) {
+    for (Int_t i= 1; i<=nm; i++) {
       ntru += mres[i][j];
     }
-    mres[this->_nm + 1][j] = vtruth[j - 1] - ntru;
+    mres[nm + 1][j] = vtruth[j - 1] - ntru;
   }
   // Subtract fakes from measured distribution
   if (this->_res->HasFakes() && _handleFakes) {
@@ -201,7 +204,7 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
     Double_t fac= this->_res->Vmeasured().Sum();
     if (fac!=0.0) fac=  this->Vmeasured().Sum() / fac;
     if (this->_verbose>=1) std::cout << "Subtract " << fac*fakes.Sum() << " fakes from measured distribution" << std::endl;
-    for (Int_t i = 1; i<=this->_nm; i++){
+    for (Int_t i = 1; i<=nm; i++){
       vmeas[i] = vmeas[i] - (fac*fakes[i - 1]);
     }
   }
@@ -270,10 +273,10 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 
   _unf->DoUnfold(_tau);
 
-  TH1F reco("_cache._rec","reconstructed dist",this->_nt,0.0,this->_nt);
+  TH1F reco("_cache._rec","reconstructed dist",nt,0.0,nt);
   _unf->GetOutput(&reco);
-  this->_cache._rec.ResizeTo (this->_nt);
-  for (int i=0;i<this->_nt;i++){
+  this->_cache._rec.ResizeTo (nt);
+  for (int i=0;i<nt;i++){
     this->_cache._rec(i)=(reco.GetBinContent(i + 1));
   }
 
@@ -291,8 +294,11 @@ template<class Hist,class Hist2D>void
 RooUnfoldTUnfoldT<Hist,Hist2D>::GetCov() const
 {
   //! Get covariance matrix
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
   if (!_unf) return;
-  TH2* ematrix= new TH2D ("ematrix","error matrix", this->_nt, 0.0, this->_nt, this->_nt, 0.0, this->_nt);
+  TH2* ematrix= new TH2D ("ematrix","error matrix", nt, 0.0, nt, nt, 0.0, nt);
   if (this->_dosys!=2) _unf->GetEmatrix (ematrix);
   if (this->_dosys) {
 #ifndef NOTUNFOLDSYS
@@ -303,9 +309,9 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::GetCov() const
 #endif
       std::cerr << "Did not use TUnfoldSys, so cannot calculate systematic errors" << std::endl;
   }
-  this->_cache._cov.ResizeTo (this->_nt,this->_nt);
-  for (Int_t i= 0; i<this->_nt; i++) {
-    for (Int_t j= 0; j<this->_nt; j++) {
+  this->_cache._cov.ResizeTo (nt,nt);
+  for (Int_t i= 0; i<nt; i++) {
+    for (Int_t j= 0; j<nt; j++) {
       this->_cache._cov(i,j)= ematrix->GetBinContent(i+1,j+1);
     }
   }
