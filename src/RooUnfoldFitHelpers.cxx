@@ -223,12 +223,10 @@ namespace {
 
 namespace RooUnfolding { // section 1: trivial helpers
   
-  Variable<RooUnfolding::RooFitHist>::Variable(int nBins,double min,double max,const char* name) : _var(new RooRealVar(name,name,nBins,min,max)) {}
-  Variable<RooUnfolding::RooFitHist>::Variable(int nBins,double* bounds,const char* name) : _var(new RooRealVar(name,name,nBins,bounds[0],bounds[nBins])) {
-    _var->setBinning(RooBinning(nBins,bounds));
-  }  
   Variable<RooUnfolding::RooFitHist>::Variable(RooRealVar* var) : _var(var) {}
-  void Variable<RooUnfolding::RooFitHist>::print() { this->_var->Print("v"); }  
+  void Variable<RooUnfolding::RooFitHist>::print() const { this->_var->Print("v"); }
+
+  bool Variable<RooUnfolding::RooFitHist>::irregular() const { return !this->_var->getBinning().isUniform(); }
   
   template<> Variable<RooUnfolding::RooFitHist> var(const RooUnfolding::RooFitHist* h, Dimension d){
     return Variable<RooUnfolding::RooFitHist>(h->obs(d));

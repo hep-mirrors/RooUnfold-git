@@ -7,6 +7,10 @@
 #include <iomanip>
 #include <stdexcept>
 
+#include "RooRealVar.h"
+
+
+
 using std::cerr;
 
 namespace RooUnfolding {
@@ -25,6 +29,15 @@ namespace RooUnfolding {
     }
   }
 
+  std::vector<double> bounds(RooRealVar* var) {
+    std::vector<double> edges{var->getBinning().binLow(0)};;
+    for (int i = 0; i < var->numBins(); ++i) {
+      // Push the bin edge into the vector
+      edges.push_back(var->getBinning().binHigh(i));
+    }
+    return edges;
+  };
+  
   TVectorD* resizeVector (const TVectorD& vec, Int_t n)
   {
 

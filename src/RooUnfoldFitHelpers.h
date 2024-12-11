@@ -71,10 +71,9 @@ namespace RooUnfolding {
 
   template<> struct Variable<RooFitHist> {
     RooRealVar* _var;
-    Variable(int nBins,double min,double max,const char* name);
-    Variable(int nBins,double* bounds,const char* name);
     Variable(RooRealVar* var);
-    void print();
+    bool irregular() const;
+    void print() const;
   };
 
   RooDataHist* convertTH1(const TH1* histo, const std::vector<RooRealVar*>& vars, bool includeUnderflowOverflow, bool correctDensity=false, double scale=1.);

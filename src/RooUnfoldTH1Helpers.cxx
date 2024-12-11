@@ -27,8 +27,7 @@ namespace RooUnfolding {
   template<class Hist> int nBins(const std::vector<RooUnfolding::Variable<Hist>>& vars){
     int n = 1;
     for(auto& x : vars){
-      if(x.irregular()) n *= (x._bounds.size() - 1);
-      else              n *= x._nBins;
+      n *= x._nBins;
     }
     return n;
   }
@@ -690,6 +689,17 @@ namespace RooUnfolding {
       std::cout << "["; for(double c : _bounds) std::cout << c << ","; std::cout << "]" << std::endl;
     } else {
       std::cout << _nBins << " bins in [" << _min << "," << _max << "]" << std::endl;
+    }
+  }
+
+  void setup(RooRealVar* v, int& _nBins, double& _min, double& _max, std::vector<double>& _bounds){
+    _min = v->getMin();
+    _max = v->getMax();
+    _nBins = v->numBins();
+    if(v->getBinning().isUniform()){
+      _bounds.clear();
+    } else {
+      _bounds = bounds(v);
     }
   }
   

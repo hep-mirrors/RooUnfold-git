@@ -8,7 +8,7 @@
 #include <TRandom.h>
 #include <iostream>
 
-
+class RooRealVar;
 
 #if defined(__GNUC__) || defined(__clang__)
 #define DEPRECATED(REASON) [[deprecated("#REASON")]]
@@ -152,6 +152,7 @@ namespace RooUnfolding {
   void randomize(TVectorD& values, const TVectorD& errors, TRandom& rnd);
   void randomize(TMatrixD& values, const TMatrixD& errors, TRandom& rnd);
   void mNorm (TMatrixD& m, const TVectorD& norm);
+  std::vector<double> bounds(RooRealVar* var);
 
   void assert_compat(const TMatrixD& a, const TMatrixD& b);
   void assert_compat(const TVectorD& a, const TVectorD& b);  

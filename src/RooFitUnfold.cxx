@@ -31,24 +31,6 @@
 
 using namespace RooUnfolding;
 
-namespace { 
-  void setBinning(RooRealVar* obs, const TAxis* ax, bool includeUnderflowOverflow){
-    int n = ax->GetNbins()+(includeUnderflowOverflow?2:0);
-    int offset = (includeUnderflowOverflow?0:1);
-    if(ax->IsVariableBinSize()){
-      std::vector<double> bounds;
-      for(int i=0; i<n; ++i){
-        bounds.push_back(ax->GetBinLowEdge(offset + i));
-      }
-      bounds.push_back(ax->GetBinUpEdge(n));
-      RooBinning bins(n,&((bounds[0])));
-      obs->setBinning(bins);
-    } else {
-      obs->setBins(n);
-    }
-  }
-}
-
 RooUnfoldFunc::RooUnfoldFunc(const char* name, const char* title, const RooUnfoldT<RooUnfolding::RooFitHist,RooUnfolding::RooFitHist>* unf, bool useDensity) :
   RooAbsReal(name,title),
   _useDensity(useDensity)                                                                                                                                                               
@@ -319,6 +301,19 @@ RooUnfoldSpec::RooUnfoldSpec(const char* name, const char* title, const TH1* tru
   //! constructor forwarding
 }
 
+namespace {
+  template<class Hist> RooRealVar* makeObs(const char* name, RooUnfolding::Variable<Hist> v){
+    RooRealVar* var = new RooRealVar(name,name,v._min,v._min,v._max);
+    var->setConstant(true);
+    if(v.irregular()){
+      var->setBinning(RooBinning(v._nBins,&(v._bounds[0])));
+    } else {
+      var->setBins(v._nBins);
+    }
+    return var;
+  }
+}
+
 
 RooUnfoldSpec::RooUnfoldSpec(const char* name, const char* title, const TH1* truth, const char* obs_truth, const TH1* reco, const char* obs_reco, const TH2* response, const TH1* bkg, const TH1* data, bool includeUnderflowOverflow, double errorThreshold, bool useDensity) : 
   TNamed(name,title)
@@ -347,25 +342,17 @@ RooUnfoldSpec::RooUnfoldSpec(const char* name, const char* title, const TH1* tru
 
   RooArgList truth_vars;
   for(int i=0; i<d; ++i){
-    const TAxis* ax = RooUnfolding::getAxis(truth,(RooUnfolding::Dimension)i);
-    double min = ax->GetBinLowEdge(!includeUnderflowOverflow);
-    double max = ax->GetBinUpEdge(ax->GetNbins()+includeUnderflowOverflow);
-    if(i>0 && ax->GetNbins() == 1) continue;    
-    RooRealVar* obs = new RooRealVar(obs_truth_v[i],ax->GetTitle() ? ax->GetTitle() : obs_truth_v[i].Data(),min,min,max);
-    setBinning(obs,ax,includeUnderflowOverflow);
-    obs->setConstant(true);
+    auto v = var(truth,(RooUnfolding::Dimension)i);
+    if(i>0 && v._nBins == 1) continue;    
+    RooRealVar* obs = makeObs(obs_truth_v[i],v);
     truth_vars.add(*obs);
   }
 
   RooArgList reco_vars;
   for(int i=0; i<d; ++i){
-    const TAxis* ax = RooUnfolding::getAxis(reco,(RooUnfolding::Dimension)i);
-    double min = ax->GetBinLowEdge(!includeUnderflowOverflow);
-    double max = ax->GetBinUpEdge(ax->GetNbins()+includeUnderflowOverflow);
-    if(i>0 && ax->GetNbins() == 1) continue;
-    RooRealVar* obs = new RooRealVar(obs_reco_v[i],ax->GetTitle() ? ax->GetTitle() : obs_reco_v[i].Data(),min,min,max);
-    setBinning(obs,ax,includeUnderflowOverflow);
-    obs->setConstant(true);
+    auto v = var(reco,(RooUnfolding::Dimension)i);
+    if(i>0 && v._nBins == 1) continue;    
+    RooRealVar* obs = makeObs(obs_reco_v[i],v);    
     reco_vars.add(*obs);
   }
   this->setup(truth,truth_vars,reco,reco_vars,response,bkg,data,includeUnderflowOverflow,errorThreshold,useDensity);

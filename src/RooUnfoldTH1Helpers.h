@@ -13,7 +13,9 @@ class RooRealVar;
 namespace RooUnfolding {
   const TAxis* getAxis(const TH1* h, RooUnfolding::Dimension d);
   void print(int _nBins, double _min, double _max, const std::vector<double>& _bounds);
- 
+  void setup(RooRealVar* v, int& _nBins, double& _min, double& _max, std::vector<double>& _bounds);
+
+  
   template<> struct Variable<TH1> {
     int _nBins;
     double _min;
@@ -22,7 +24,7 @@ namespace RooUnfolding {
     bool irregular() const { return _bounds.size() > 0; }
     void print() const { RooUnfolding::print(_nBins, _min, _max, _bounds); }
     Variable(int nBins,double min,double max,const char*) : _nBins(nBins),_min(min),_max(max){};
-    Variable(RooRealVar* var) : _nBins(var->numBins()),_min(var->getMin()),_max(var->getMax()){};
+    Variable(RooRealVar* var){ RooUnfolding::setup(var, _nBins, _min, _max, _bounds); }
     Variable(int nBins, const double* bounds,const char*) : _nBins(nBins),_min(bounds[0]),_max(bounds[nBins]) { for(size_t i=0; i<=nBins; ++i){ _bounds.push_back(bounds[i]); } }
     Variable(const std::vector<double>& bounds,const char* s) : Variable(bounds.size()-1,&(bounds[0]),s) {};
   };
@@ -34,7 +36,7 @@ namespace RooUnfolding {
     bool irregular() const { return _bounds.size() > 0; }
     void print() const { RooUnfolding::print(_nBins, _min, _max, _bounds); }
     Variable(int nBins,double min,double max,const char*) : _nBins(nBins),_min(min),_max(max){};
-    Variable(RooRealVar* var) : _nBins(var->numBins()),_min(var->getMin()),_max(var->getMax()){};
+    Variable(RooRealVar* var){ RooUnfolding::setup(var, _nBins, _min, _max, _bounds); }    
     Variable(int nBins, const double* bounds,const char*) : _nBins(nBins),_min(bounds[0]),_max(bounds[nBins]) { for(size_t i=0; i<=nBins; ++i){ _bounds.push_back(bounds[i]); } }    
     Variable(const std::vector<double>& bounds,const char* s) : Variable(bounds.size()-1,&(bounds[0]),s) {};
   };
@@ -46,7 +48,7 @@ namespace RooUnfolding {
     bool irregular() const { return _bounds.size() > 0; }
     void print() const { RooUnfolding::print(_nBins, _min, _max, _bounds); }
     Variable(int nBins,double min,double max,const char*) : _nBins(nBins),_min(min),_max(max){};
-    Variable(RooRealVar* var) : _nBins(var->numBins()),_min(var->getMin()),_max(var->getMax()){};      
+    Variable(RooRealVar* var){ RooUnfolding::setup(var, _nBins, _min, _max, _bounds); }        
     Variable(int nBins, const double* bounds,const char*) : _nBins(nBins),_min(bounds[0]),_max(bounds[nBins]) { for(size_t i=0; i<=nBins; ++i){ _bounds.push_back(bounds[i]); } }
     Variable(const std::vector<double>& bounds,const char* s) : Variable(bounds.size()-1,&(bounds[0]),s) {};
   };
