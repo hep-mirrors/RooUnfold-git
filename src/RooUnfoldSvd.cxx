@@ -135,7 +135,7 @@ RooUnfoldSvdT<Hist,Hist2D>::Unfold() const
     std::cerr << "RooUnfoldSvdT invalid kreg=" << this->_kreg << " with " << nm << " bins" << std::endl;
     return;
   }
-  
+
   this->_svd= new SVDUnfold (this->Vmeasured(), this->GetMeasuredCov(), this->_res->Vmeasured(), this->_res->Vtruth(), this->_res->Mresponse(false), this->_res->Eresponse(false));
 
   this->_cache._rec.ResizeTo (nt);
@@ -159,6 +159,7 @@ RooUnfoldSvdT<Hist,Hist2D>::GetCov() const
   } else {
     this->_cache._cov = this->_svd->GetXtau();
   }
+
   this->_cache._haveCov= true;
 }
 

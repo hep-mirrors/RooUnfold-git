@@ -271,7 +271,6 @@ TVectorD RooUnfoldSvdT<Hist,Hist2D>::SVDUnfold::UnfoldV()
    TVectorD vbini = fBini;
    TVectorD vxini = fXini;
 
-
    ::sanitizeNaN(mB,eps);
    ::sanitizeNaN(vberr,eps);
 

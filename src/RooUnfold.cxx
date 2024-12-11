@@ -456,15 +456,18 @@ template<class Hist,class Hist2D> const TMatrixD&
 RooUnfoldT<Hist,Hist2D>::GetMeasuredCov() const
 {
   //! Get covariance matrix on measured distribution.
-  if (_covMes) return *_covMes;
-  auto err(Emeasured());
-  int nm = response()->Vmeasured().GetNrows();
-  _cache._covMes= new TMatrixD (nm, nm);
-  for (Int_t i= 0 ; i<nm; i++) {
-    Double_t e= err[i];
-    (*_cache._covMes)(i,i)= e*e;
+  if (_covMes){
+    return *_covMes;
+  } else {
+    auto err(Emeasured());
+    int nm = response()->Vmeasured().GetNrows();
+    _cache._covMes= new TMatrixD (nm, nm);
+    for (Int_t i= 0 ; i<nm; i++) {
+      Double_t e= err[i];
+      (*_cache._covMes)(i,i)= e*e;
+    }
+    return *_cache._covMes;
   }
-  return *_cache._covMes;
 }
 
 //! Gives the pull of each unfolding instance of a given bin as a vector
@@ -549,6 +552,7 @@ RooUnfoldT<Hist,Hist2D>::GetCov() const
       _cache._cov(i,j)= covmeas(i,j);
     }
   }
+
   _cache._haveCov= true;
 }
 
@@ -607,15 +611,7 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
   //! set as the measured histogram.
   Hist* asimov = RooUnfolding::asimov1DClone(this->response()->Hmeasured(),this->response()->UseDensityStatus(),vreco2,vrecoerr);
 
-  auto* toyFactory = this->New(this->GetAlgorithm(),this->response(),asimov,GetRegParm());
-  if(!toyFactory){
-    throw std::runtime_error(TString::Format("unable to instantiate toy factory with algorithm '%d'",this->GetAlgorithm()).Data());
-  }    
-  toyFactory->SetVerbose(0);
 
-  if (this->Htruth()){
-    toyFactory->SetTruth(this->Htruth());
-  }
 
   int nt = response()->Vtruth().GetNrows();
   
@@ -669,7 +665,6 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
     _cache._rmsbias(i) = sqrt(rms/ntoys);
   }
   delete asimov;
-  delete toyFactory;
   
   this->_cache._haveBias=true;
   this->_cache._haveErrors=haveerrors;
@@ -1582,7 +1577,6 @@ const TVectorD&          RooUnfoldT<Hist,Hist2D>::Emeasured() const
       }
     } else {
       _cache._eMes = new TVectorD(h2ve (_meas, Overflow(), this->response()->UseDensityStatus()));
-      _cache._eMes->Print();
     }
   }
   return *_cache._eMes;
@@ -1929,7 +1923,12 @@ RooUnfoldT<Hist, Hist2D>::RunToys(int ntoys, std::vector<TVectorD>& vx, std::vec
   auto* toyFactory = this->New(this->GetAlgorithm(),this->response(),asimov,GetRegParm());
   if(!toyFactory){
     throw std::runtime_error(TString::Format("unable to instantiate toy factory with algorithm '%d'",this->GetAlgorithm()).Data());
-  }  
+  }
+  if(this->_covMes){
+    toyFactory->SetMeasuredCov(*(this->_covMes));
+  }
+
+  
   TVectorD vbkg(this->response()->Vmeasured().GetNrows());
 
   //! Get the background if its there.
