@@ -602,16 +602,10 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
   Bool_t havecov = this->_cache._haveCov;
 
   //! Use the response matrix truth if not supplied..
-  TVectorD vtruth(hTrue ? h2v(hTrue,Overflow(),response()->UseDensityStatus()) : _res->Vtruth());
+  TVectorD vtruth(hTrue ? h2v(hTrue,Overflow(),false) : _res->Vtruth());
 
   TVectorD vreco2(this->response()->Vfolded(vtruth));
   TVectorD vrecoerr(vreco2);
-
-  //! Create un unfolding instance with the reconstructed histogram
-  //! set as the measured histogram.
-  Hist* asimov = RooUnfolding::asimov1DClone(this->response()->Hmeasured(),this->response()->UseDensityStatus(),vreco2,vrecoerr);
-
-
 
   int nt = response()->Vtruth().GetNrows();
   
@@ -664,7 +658,6 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
     //! Get the rms.
     _cache._rmsbias(i) = sqrt(rms/ntoys);
   }
-  delete asimov;
   
   this->_cache._haveBias=true;
   this->_cache._haveErrors=haveerrors;
