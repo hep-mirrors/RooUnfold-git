@@ -168,11 +168,55 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::GetLogTauY() const
   return _logTauY;
 }
 
+namespace {
+  bool IsRowEmpty(const TMatrixD& matrix, int row) {
+    for (int col = 0; col < matrix.GetNcols(); ++col) {
+      if (matrix(row, col) != 0) {
+	return false;
+      }
+    }
+    return true;
+  }
+
+  bool IsColumnEmpty(const TMatrixD& matrix, int col) {
+    for (int row = 0; row < matrix.GetNrows(); ++row) {
+      if (matrix(row, col) != 0) {
+	return false;
+      }
+    }
+    return true;
+  }
+
+  bool CheckEmptyRowsAndColumns(const TMatrixD& matrix) {
+    // Check rows
+    bool anyEmpty = false;
+    for (int row = 0; row < matrix.GetNrows(); ++row) {
+      if (IsRowEmpty(matrix, row)) {
+	std::cout << "Row " << row << " is completely empty." << std::endl;
+	anyEmpty = true;
+      }
+    }
+
+    // Check columns
+    for (int col = 0; col < matrix.GetNcols(); ++col) {
+      if (IsColumnEmpty(matrix, col)) {
+	std::cout << "Column " << col << " is completely empty." << std::endl;
+	anyEmpty = true;	
+      }
+    }
+    return anyEmpty;
+  }
+}
+
 template<class Hist,class Hist2D>void
 RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 {
   int nm = this->response()->Vmeasured().GetNrows();  
-  int nt = this->response()->Vtruth().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();
+
+  if(CheckEmptyRowsAndColumns(this->response()->Mresponse(false))){
+    throw std::runtime_error("TUnfold cannot deal with empty rows or columns in the response matrix, please reduce your histogram range!");
+  }
   
   // Does the unfolding. Uses the optimal value of the unfolding parameter unless a value has already been set using FixTau
   if (nm<nt)     std::cerr << "Warning: fewer measured bins than truth bins. TUnfold may not work correctly." << std::endl;
