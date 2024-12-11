@@ -37,8 +37,8 @@ public:
 
    // Do the unfolding
    // "kreg"   - number of singular values used (regularisation)
-   //Hist*    Unfold       ( Int_t kreg );
-   TVectorD    UnfoldV       ( Int_t kreg );    
+   TVectorD    UnfoldV       ( Int_t kreg, double tolerance );
+   TVectorD    UnfoldV       ();        
 
    // Determine for given input error matrix covariance matrix of unfolded 
    // spectrum from toy simulation
@@ -53,9 +53,6 @@ public:
    // "seed"   - seed for pseudo experiments
    // "uncmat" - matrix containing the uncertainty on the detector matrix elements if different from purely statistical without any weights
    TMatrixD    GetAdetCovMatrix( Int_t ntoys, Int_t seed=1, const TMatrixD* uncmat=0 );
-
-   // Regularisation parameter
-   Int_t    GetKReg() const { return fKReg; }
 
    // Obtain the distribution of |d| (for determining the regularization)
    Hist*    GetD() const;
@@ -91,6 +88,7 @@ private:
    Int_t       fDdim;        //! Derivative for curvature matrix
    Bool_t      fNormalize;   //! Normalize unfolded spectrum to 1
    Int_t       fKReg;        //! Regularisation parameter
+   double      fTolerance;   //! Numerical tolerance for decomposition
    Hist*       fDHist;       //! Distribution of d (for checking regularization)
    TVectorD       fSVHist;      //! Distribution of singular values
    TMatrixD       fXtau;        //! Computed regularized covariance matrix
@@ -112,7 +110,8 @@ private:
    TMatrixD       fToymatE;      //! Toy MC detector response matrix
    Bool_t      fToyMode;     //! Internal switch for covariance matrix propagation
    Bool_t      fMatToyMode;  //! Internal switch for evaluation of statistical uncertainties from response matrix
-};
+
+  };
 
 public:
 
@@ -135,6 +134,8 @@ public:
 
   void SetKterm (Int_t kreg);
   Int_t GetKterm() const;
+  void SetTolerance (double tol);
+  double GetTolerance () const;    
   virtual void  SetRegParm (Double_t parm) override;
   virtual Double_t GetRegParm() const override;
   virtual void Reset() override;
@@ -154,6 +155,7 @@ private:
   
 protected:
   // instance variables
+  double _tolerance = 1e-9;
   mutable SVDUnfold* _svd;  //! Implementation in TSVDUnfold object (no streamer)
   mutable Int_t _kreg;
 

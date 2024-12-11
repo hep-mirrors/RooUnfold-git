@@ -139,7 +139,7 @@ RooUnfoldSvdT<Hist,Hist2D>::Unfold() const
   this->_svd= new SVDUnfold (this->Vmeasured(), this->GetMeasuredCov(), this->_res->Vmeasured(), this->_res->Vtruth(), this->_res->Mresponse(false), this->_res->Eresponse(false));
 
   this->_cache._rec.ResizeTo (nt);
-  this->_cache._rec = this->_svd->UnfoldV (this->_kreg);
+  this->_cache._rec = this->_svd->UnfoldV (this->_kreg, this->_tolerance);
 
   this->_cache._unfolded= true;
   this->_cache._haveCov=  false;
@@ -234,11 +234,27 @@ RooUnfoldSvdT<Hist,Hist2D>::SetKterm (Int_t kreg)
 }
 
 
+template<class Hist,class Hist2D> void
+RooUnfoldSvdT<Hist,Hist2D>::SetTolerance (double tolerance)
+{
+  //! Set regularisation parameter
+  this->_tolerance= tolerance;
+  this->ResetUnfold();
+}
+
+
 template<class Hist,class Hist2D> Int_t
 RooUnfoldSvdT<Hist,Hist2D>::GetKterm() const
 {
   //! Return regularisation parameter
   return this->_kreg;
+}
+
+template<class Hist,class Hist2D> double
+RooUnfoldSvdT<Hist,Hist2D>::GetTolerance() const
+{
+  //! Return regularisation parameter
+  return this->_tolerance;
 }
 
 template<class Hist,class Hist2D> void

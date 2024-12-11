@@ -606,6 +606,7 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
   //! Create un unfolding instance with the reconstructed histogram
   //! set as the measured histogram.
   Hist* asimov = RooUnfolding::asimov1DClone(this->response()->Hmeasured(),this->response()->UseDensityStatus(),vreco2,vrecoerr);
+
   auto* toyFactory = this->New(this->GetAlgorithm(),this->response(),asimov,GetRegParm());
   if(!toyFactory){
     throw std::runtime_error(TString::Format("unable to instantiate toy factory with algorithm '%d'",this->GetAlgorithm()).Data());
@@ -627,7 +628,6 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
   //! An array that will contain all the unfolded toys.
   std::vector<TVectorD> munfolded, etoys;
   std::vector<double> chi2;
-
   this->RunToys(ntoys, munfolded, etoys, chi2);    
 
   //! Calculate the bias and its stat. error with 
@@ -668,7 +668,6 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
     //! Get the rms.
     _cache._rmsbias(i) = sqrt(rms/ntoys);
   }
-
   delete asimov;
   delete toyFactory;
   
