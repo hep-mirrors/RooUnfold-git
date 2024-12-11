@@ -29,6 +29,7 @@ public:
   virtual RooUnfolding::Algorithm GetAlgorithm() const override;  
   virtual void Reset() override;
   TDecompSVD* Impl();
+  const TMatrixD& InverseResponse() const;
   
 protected:
   virtual void Unfold() const override;

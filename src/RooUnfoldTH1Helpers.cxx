@@ -316,15 +316,15 @@ namespace RooUnfolding {
     // Bin content by vector index
     return h->GetBinContent (bin (h, i, j, overflow));
   }
-  template<> double binVolume<TH1> (const TH1* h, int i, int j, Bool_t overflow)
+  template<> double binVolume<TH1> (const TH1* h, int i, int j, Bool_t /*overflow*/)
   {
     // Bin volume by vector index
-    return h->GetXaxis()->GetBinWidth(i+1-overflow) * h->GetYaxis()->GetBinWidth(j+1-overflow);
+    return h->GetXaxis()->GetBinWidth(i+1) * h->GetYaxis()->GetBinWidth(j+1);
   }
-  template<> double binVolume<TH2> (const TH2* h, int i, int j, Bool_t overflow)
+  template<> double binVolume<TH2> (const TH2* h, int i, int j, Bool_t /*overflow*/)
   {
     // Bin volume by vector index
-    return h->GetXaxis()->GetBinWidth(i+1-overflow) * h->GetYaxis()->GetBinWidth(j+1-overflow);
+    return h->GetXaxis()->GetBinWidth(i+1) * h->GetYaxis()->GetBinWidth(j+1);
   }
   template<> void h2mNorm<TH1,TH2>  (const TH2* h, TMatrixD& m, const TH1* norm, bool overflow, bool correctDensity){
     // sets Matrix to values of bins in a 2D input histogram

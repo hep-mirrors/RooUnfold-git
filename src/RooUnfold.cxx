@@ -598,7 +598,7 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
   Bool_t havecov = this->_cache._haveCov;
 
   //! Use the response matrix truth if not supplied..
-  TVectorD vtruth(hTrue ? h2v(hTrue,false) : _res->Vtruth());
+  TVectorD vtruth(hTrue ? h2v(hTrue,Overflow(),response()->UseDensityStatus()) : _res->Vtruth());
 
   TVectorD vreco2(this->response()->Vfolded(vtruth));
   TVectorD vrecoerr(vreco2);
@@ -684,7 +684,7 @@ RooUnfoldT<Hist,Hist2D>::CalculatePull(Int_t ntoys, const Hist* hTrue) const
   Bool_t havecov = this->_cache._haveCov;
 
   //! Use the response matrix truth if not supplied..
-  TVectorD vtruth(hTrue ? h2v(hTrue,false) : _res->Vtruth());
+  TVectorD vtruth(hTrue ? h2v(hTrue,Overflow(),response()->UseDensityStatus()) : _res->Vtruth());
   TVectorD vreco2(this->response()->Vfolded(vtruth));
   TVectorD vrecoerr(vreco2);
 
@@ -1583,6 +1583,7 @@ const TVectorD&          RooUnfoldT<Hist,Hist2D>::Emeasured() const
       }
     } else {
       _cache._eMes = new TVectorD(h2ve (_meas, Overflow(), this->response()->UseDensityStatus()));
+      _cache._eMes->Print();
     }
   }
   return *_cache._eMes;

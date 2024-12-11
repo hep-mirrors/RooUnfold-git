@@ -81,10 +81,6 @@ RooUnfoldSvdT<Hist,Hist2D>::Destroy()
 {
   //! delete all members of this object
   delete this->_svd;
-  delete this->_meas1d;
-  delete this->_train1d;
-  delete this->_truth1d;
-  delete this->_reshist;
 }
 
 template<class Hist,class Hist2D> void
@@ -92,8 +88,6 @@ RooUnfoldSvdT<Hist,Hist2D>::Init()
 {
   //! initialize this object with zero values
   this->_svd= 0;
-  this->_meas1d= this->_train1d= this->_truth1d= 0;
-  this->_reshist= this->_meascov= 0;
   GetSettings();
 }
 
@@ -120,13 +114,6 @@ RooUnfoldSvdT<Hist,Hist2D>::Impl()
 }
 
 
-template<class Hist,class Hist2D> void RooUnfoldSvdT<Hist,Hist2D>::PrepareHistograms() const{
-  //! fill all the histogram members
-  this->_meas1d = this->_meas;
-  this->_train1d= this->_res->Hmeasured();
-  this->_truth1d= this->_res->Htruth();
-  this->_reshist= this->_res->Hresponse();
-}
 
 template<class Hist,class Hist2D> void
 RooUnfoldSvdT<Hist,Hist2D>::Unfold() const
@@ -148,25 +135,11 @@ RooUnfoldSvdT<Hist,Hist2D>::Unfold() const
     std::cerr << "RooUnfoldSvdT invalid kreg=" << this->_kreg << " with " << nm << " bins" << std::endl;
     return;
   }
-
-  this->PrepareHistograms();
-
-  if (this->_verbose>=1) std::cout << "SVD init " << nBins(this->_reshist,X) << " x " << nBins(this->_reshist,Y) << " bins, kreg=" << this->_kreg << std::endl;
-  if(!this->_meas1d) throw std::runtime_error("no meas1d given!");
-  if(!this->_train1d) throw std::runtime_error("no train1d given!");
-  if(!this->_truth1d) throw std::runtime_error("no truth1d given!");
-  if(!this->_reshist) throw std::runtime_error("no reshist given!");
   
   this->_svd= new SVDUnfold (this->Vmeasured(), this->GetMeasuredCov(), this->_res->Vmeasured(), this->_res->Vtruth(), this->_res->Mresponse(false), this->_res->Eresponse(false));
 
   this->_cache._rec.ResizeTo (nt);
   this->_cache._rec = this->_svd->UnfoldV (this->_kreg);
-
-  if (this->_verbose>=2) {
-    printTable (std::cout, h2v(this->_truth1d), h2v(this->_train1d), h2v(this->_meas1d), this->_cache._rec);
-    TMatrixD resmat(h2m(this->_reshist));
-    printMatrix(resmat,"SVDUnfold response matrix");
-  }
 
   this->_cache._unfolded= true;
   this->_cache._haveCov=  false;

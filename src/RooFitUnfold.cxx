@@ -513,15 +513,15 @@ void RooUnfoldSpec::setup(const TH1* truth_th1, const RooArgList& obs_truth, con
   this->_includeUnderflowOverflow = includeUnderflowOverflow;
   this->_useDensity = useDensity;
   this->_errorThreshold = errorThreshold;
-  if(truth_th1) this->_truth.setNominal(truth_th1,obs_truth,errorThreshold,includeUnderflowOverflow,this->_useDensity);
-  if(reco_th1)  this->_reco.setNominal(reco_th1,obs_reco,errorThreshold,includeUnderflowOverflow,this->_useDensity);
+  if(truth_th1) this->_truth.setNominal(truth_th1,obs_truth,errorThreshold,includeUnderflowOverflow,!this->_useDensity);
+  if(reco_th1)  this->_reco.setNominal(reco_th1,obs_reco,errorThreshold,includeUnderflowOverflow,!this->_useDensity);
   this->_obs_reco.add(obs_reco);
   this->_obs_all.add(obs_reco);  
   this->_obs_truth.add(obs_truth);  
   this->_obs_all.add(obs_truth);
-  if(response_th1) this->_res.setNominal(response_th1,this->_obs_all,errorThreshold,includeUnderflowOverflow,this->_useDensity);
-  if(bkg_th1)  this->_bkg.setNominal(bkg_th1,obs_reco,errorThreshold,includeUnderflowOverflow,this->_useDensity);
-  if(data_th1) this->_data.setNominal(data_th1,obs_reco,0.,includeUnderflowOverflow,this->_useDensity);
+  if(response_th1) this->_res.setNominal(response_th1,this->_obs_all,errorThreshold,includeUnderflowOverflow,!this->_useDensity);
+  if(bkg_th1)  this->_bkg.setNominal(bkg_th1,obs_reco,errorThreshold,includeUnderflowOverflow,!this->_useDensity);
+  if(data_th1) this->_data.setNominal(data_th1,obs_reco,0.,includeUnderflowOverflow,!this->_useDensity);
 }
 
 RooUnfolding::RooFitHist* RooUnfoldSpec::makeHistogram(const TH1* hist){
@@ -573,9 +573,6 @@ namespace {
   TH1* stathist (std::vector<TH1*>& hists, const std::vector<Variable<TH1>>& vars, const RooUnfoldSpec::HistContainer& cont, const char* name, const char* title, int color, bool useDensity, bool includeUnderflowOverflow) {  
     // here, we assume poisson statistics, so the variance is equal to the mean
     const auto vec = h2v(cont._nom,false,useDensity);
-    for(size_t i=0; i<vec.GetNrows(); ++i){
-      std::cout << name << " " << i << " " << vec[i] << " " << std::endl;
-    }
     TH1* variance = createHist<TH1>(vec, name, title, vars, includeUnderflowOverflow);
     variance->SetFillColor(color);  
     variance->SetDirectory(0);
@@ -595,9 +592,6 @@ namespace {
 	for (int i = 0; i < shapeUp.GetNrows(); ++i) {
 	  variances[i] = std::pow(shapeUp[i] - nominal[i], 2) + std::pow(shapeDown[i] - nominal[i], 2);
 	}
-	for(size_t i=0; i<variances.GetNrows(); ++i){
-	  std::cout << name << " " << i << " " << nominal[i] << " " << shapeUp[i] << " " << shapeDown[i] << ": " << variances[i] << " " << std::endl;
-	}	
 	TH1* varhist = createHist<TH1>(variances, (std::string(name) + " " + var.first).c_str(), (std::string(title) + " " + var.first).c_str(), vars, includeUnderflowOverflow);
 	varhist->SetLineColor(0);	
 	varhist->SetFillColor(color+isys);
@@ -948,13 +942,13 @@ RooUnfolding::RooFitHist* RooUnfoldSpec::makeHistogram(const HistContainer& sour
 RooHistFunc* RooUnfoldSpec::makeHistFuncTruth(const TH1* hist){
   //! create a new truth hist func
   if(!hist) return NULL;
-  return RooUnfolding::makeHistFunc(hist,this->_obs_truth, this->_includeUnderflowOverflow, this->_useDensity);
+  return RooUnfolding::makeHistFunc(hist,this->_obs_truth, this->_includeUnderflowOverflow, !this->_useDensity);
 }
 
 RooHistFunc* RooUnfoldSpec::makeHistFuncMeasured(const TH1* hist){
   //! create a new measured hist func
   if(!hist) return NULL;
-  return RooUnfolding::makeHistFunc(hist,this->_obs_reco, this->_includeUnderflowOverflow, this->_useDensity);
+  return RooUnfolding::makeHistFunc(hist,this->_obs_reco, this->_includeUnderflowOverflow, !this->_useDensity);
 }
 
 RooProdPdf* RooUnfoldSpec::makeConstraints(){
@@ -1013,7 +1007,7 @@ void RooUnfoldSpec::makeResponse(){
     this->makeTruth();
     if(!this->_res._nom) throw std::runtime_error("no response input given!");        
     this->_cache._res = this->makeHistogram(this->_res,this->_errorThreshold);
-    this->_cache._response = new RooFitUnfoldResponse(this->GetName(),this->GetTitle(),this->_cache._res,this->_cache._truth,this->_cache._reco,this->_useDensity);
+    this->_cache._response = new RooFitUnfoldResponse(this->GetName(),this->GetTitle(),this->_cache._res,this->_cache._truth,this->_cache._reco,true);
   }
 }
 void RooUnfoldSpec::makeTruth(){
@@ -1106,9 +1100,9 @@ void RooUnfoldSpec::HistContainer::setNominal(RooDataHist* data, const RooArgLis
   }
 }
 
-void RooUnfoldSpec::HistContainer::setNominal(const TH1* nom, const RooArgList& obslist, double errorThreshold, bool includeUnderflowOverflow, bool useDensity){
+void RooUnfoldSpec::HistContainer::setNominal(const TH1* nom, const RooArgList& obslist, double errorThreshold, bool includeUnderflowOverflow, bool correctDensity){
   // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore
-  this->_nom = RooUnfolding::makeHistFunc(nom,obslist,includeUnderflowOverflow,!useDensity);
+  this->_nom = RooUnfolding::makeHistFunc(nom,obslist,includeUnderflowOverflow,correctDensity);
   this->_obs.add(obslist);
   if(errorThreshold >= 0){
     this->_gammas = RooUnfolding::createGammas(nom,includeUnderflowOverflow,errorThreshold);

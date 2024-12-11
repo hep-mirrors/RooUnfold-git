@@ -151,15 +151,11 @@ private:
   void Init();
   void Destroy();
   void CopyData (const RooUnfoldSvdT<Hist,Hist2D>& rhs);
-  void PrepareHistograms() const;
   
 protected:
   // instance variables
   mutable SVDUnfold* _svd;  //! Implementation in TSVDUnfold object (no streamer)
   mutable Int_t _kreg;
-
-  mutable const Hist *_meas1d, *_train1d, *_truth1d;
-  mutable const Hist2D *_reshist, *_meascov;
 
 public:
   ClassDefOverride (RooUnfoldSvdT, 1) // SVD Unfolding (interface to TSVDUnfold)

@@ -590,11 +590,12 @@ namespace RooUnfolding { // section 2: non-trivial helpers
         }
       } else {
         int bin = histo->GetBin(ix+offset);
-        double volume = useIf(histo->GetXaxis()->GetBinWidth(ix+offset),correctDensity);
-        dh->add(obs,scale*histo->GetBinContent(bin)/volume,TMath::Power(scale*histo->GetBinError(bin)/volume,2)) ;     
+        const double volume = useIf(histo->GetXaxis()->GetBinWidth(ix+offset),correctDensity);
+	const double content = histo->GetBinContent(bin);
+        dh->add(obs,scale*content/volume,TMath::Power(scale*histo->GetBinError(bin)/volume,2)) ;
       }
     }
-    
+
     dh->removeSelfFromDir();
 
     return dh;
@@ -913,7 +914,7 @@ namespace RooUnfolding { // section 2: non-trivial helpers
     }
     for(size_t i=0; i<n; ++i){
       double vol = binVolume(hist,i, overflow);
-      res[i] -= binContent(hist,i,overflow) / (correctDensity ? vol : 1.);
+      res[i] -= binContent(hist,i,overflow) * (correctDensity ? vol : 1.);
     }
     return res;
   }
