@@ -656,7 +656,7 @@ RooUnfoldT<Hist,Hist2D>::CalculateBias(Int_t ntoys, const Hist* hTrue) const
     _cache._bias(i) = av_unfolded - vtruth(i);
 
     //! Get the rms.
-    _cache._rmsbias(i) = sqrt(rms/ntoys);
+    _cache._rmsbias(i) = sqrt(rms)/ntoys;
   }
   
   this->_cache._haveBias=true;
