@@ -156,7 +156,7 @@ RooUnfoldParms::DoMath()
         }
         Int_t gvl=0;
         Int_t _overflow=unfold->Overflow();
-        Int_t nt = unfold->response()->GetNbinsTruth();
+        Int_t nt = unfold->response()->Vtruth().GetNrows();
         if (_overflow) nt += 2;
     
         for (Double_t k=_minparm;k<=_maxparm;k+=_stepsizeparm)

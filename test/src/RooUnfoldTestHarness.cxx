@@ -415,11 +415,7 @@ Int_t RooUnfoldTestHarness::Unfold ()
   if (verbose>=0) unfold->PrintTable (cout, hTrue, (RooUnfold::ErrorTreatment)doerror);
   if (verbose>=2 && doerror>=RooUnfold::kCovariance) {
     TMatrixD covmat= unfold->Eunfold((RooUnfold::ErrorTreatment)doerror);
-    TMatrixD errmat(ntbins,ntbins);
-    for (Int_t i=0; i<ntbins; i++)
-      for (Int_t j=0; j<ntbins; j++)
-        errmat(i,j)= covmat(i,j)>=0 ? sqrt(covmat(i,j)) : -sqrt(-covmat(i,j));
-    RooUnfolding::printMatrix(errmat,"covariance matrix");
+    RooUnfolding::printMatrix(covmat,"covariance matrix");
   }
 
   // Calculate pulls and residuals

@@ -205,8 +205,6 @@ protected:
   
   TMatrixD* _covMes;                         // Measurement covariance matrix
   Int_t    _verbose;                         // Debug print level
-  Int_t    _nm;                              // Total number of measured bins (including under/overflows if _overflow set)
-  Int_t    _nt;                              // Total number of truth    bins (including under/overflows if _overflow set
   Int_t    _overflow;                        // Use histogram under/overflows if 1 (set from RooUnfoldResponse)
   Int_t    _NToys;                           // Number of toys to be used
   RooUnfolding::SystematicsTreatment _dosys; // include systematic errors from response matrix? use _dosys=2 to exclude measurement errors

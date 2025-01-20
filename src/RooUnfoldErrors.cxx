@@ -78,7 +78,7 @@ RooUnfoldErrors::GraphParameters()
 {
     //Gets graph size parameters//
     const TH1* HR=unfold->response()->Htruth();
-    ntx=unfold->response()->GetNbinsTruth();
+    ntx=unfold->response()->Vtruth().GetNrows();
     if (HR->GetDimension()==1) {
       xlo=HR->GetXaxis()->GetXmin();
       xhi=HR->GetXaxis()->GetXmax();

@@ -61,6 +61,9 @@ RooUnfoldBinByBinT<Hist,Hist2D>::Unfold() const
   const TVectorD& vtruth(this->_res->Vtruth());
   const TVectorD& fakes(this->_res->Vfakes());
 
+  int nm = vtrain.GetNrows();
+  int nt = vtruth.GetNrows();
+  
   Double_t fac= 0.0;
   if (this->_res->HasFakes()) { 
     fac= vtrain.Sum();
@@ -68,9 +71,9 @@ RooUnfoldBinByBinT<Hist,Hist2D>::Unfold() const
     if (this->_verbose>=1) std::cout << "Subtract " << fac*fakes.Sum() << " fakes from measured distribution" << std::endl;
   }
 
-  this->_cache._rec.ResizeTo(this->_nt);
-  this->_specialcache._factors.ResizeTo(this->_nt);
-  Int_t nb= std::min(this->_nm,this->_nt);
+  this->_cache._rec.ResizeTo(nt);
+  this->_specialcache._factors.ResizeTo(nt);
+  Int_t nb= std::min(nm,nt);
   for (int i=0; i<nb; i++) {
     Double_t train= vtrain[i]-fakes[i];
     if (train==0.0) continue;
@@ -86,9 +89,11 @@ template<class Hist,class Hist2D> void
 RooUnfoldBinByBinT<Hist,Hist2D>::GetCov() const
 {
   //! Get covariance matrix
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();  
   const TMatrixD& covmeas(this->GetMeasuredCov());
-  this->_cache._cov.ResizeTo(this->_nt,this->_nt);
-  Int_t nb= std::min(this->_nm,this->_nt);
+  this->_cache._cov.ResizeTo(nt,nt);
+  Int_t nb= std::min(nm,nt);
   for (int i=0; i<nb; i++)
     for (int j=0; j<nb; j++)
       this->_cache._cov(i,j)= pow(this->_specialcache._factors[i],2)*covmeas(i,j);

@@ -7,6 +7,10 @@
 #include <iomanip>
 #include <stdexcept>
 
+#include "RooRealVar.h"
+
+
+
 using std::cerr;
 
 namespace RooUnfolding {
@@ -25,6 +29,15 @@ namespace RooUnfolding {
     }
   }
 
+  std::vector<double> bounds(RooRealVar* var) {
+    std::vector<double> edges{var->getBinning().binLow(0)};;
+    for (int i = 0; i < var->numBins(); ++i) {
+      // Push the bin edge into the vector
+      edges.push_back(var->getBinning().binHigh(i));
+    }
+    return edges;
+  };
+  
   TVectorD* resizeVector (const TVectorD& vec, Int_t n)
   {
 
@@ -88,6 +101,23 @@ namespace RooUnfolding {
   }
 
 
+  TH1D* getTH1(const TVectorD& vec, const char* name, const char* title, bool overflow){
+    
+    Int_t i_start = 1;
+
+    if(overflow){
+      i_start = 0;
+    }
+
+    TH1D* hist = new TH1D(name, title, vec.GetNrows(), 0, 1);
+
+    for (int i = 0; i < vec.GetNrows(); i++){
+      hist->SetBinContent(i + i_start, vec[i]);
+    }
+    
+    return hist;
+  }
+  
   TH1D* getTH1(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, bool overflow){
     
     Int_t i_start = 1;
@@ -109,9 +139,7 @@ namespace RooUnfolding {
   // Add an empty bin on both sides of the vector.
   void addEmptyBins(TVectorD& v){
     
-    Int_t bins = v.GetNrows();
-    bins+=2;
-    
+    Int_t bins = v.GetNrows() + 2;
     v.ResizeTo(bins);
 
     for (Int_t i = bins; i > 1; i--){
@@ -123,11 +151,8 @@ namespace RooUnfolding {
   // Add one layer of empty bins on all sides of the matrix.
   void addEmptyBins(TMatrixD& m){
     
-    Int_t bins_x = m.GetNrows();
-    Int_t bins_y = m.GetNcols();
-    bins_x+=2;
-    bins_y+=2;
-
+    Int_t bins_x = m.GetNrows() + 2;
+    Int_t bins_y = m.GetNcols() + 2;
     m.ResizeTo(bins_x, bins_y);
 
     for (Int_t i = bins_x; i > 0; i--){
@@ -414,5 +439,11 @@ namespace RooUnfolding {
       }
     }
   }
-  
+
+  void assert_compat(const TMatrixD& a, const TMatrixD& b) {
+    if(a.GetNcols() != b.GetNcols() || a.GetNrows() != b.GetNrows()) throw std::runtime_error(TString::Format("matrix operation impossible due to size mismatch: arguments are of size %d/%d and %d/%d",a.GetNrows(),a.GetNcols(),b.GetNrows(),b.GetNcols()).Data());
+  }
+  void assert_compat(const TVectorD& a, const TVectorD& b) {
+    if(a.GetNrows() != b.GetNrows()) throw std::runtime_error(TString::Format("vector operation impossible due to size mismatch: arguments are of size %d and %d",a.GetNrows(),b.GetNrows()).Data());
+  }
 }

@@ -2,7 +2,7 @@ from test_utils import perform_test
 
 if __name__ == '__main__':
     parms = {
-        'overflow': ['1', '2'],
+        'overflow': ['0', '1', '2'],
         'verbose': ['3']
     }
     ref_file_name = "../ref/overflow.ref"

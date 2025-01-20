@@ -76,17 +76,10 @@ RooUnfoldInvertT<Hist,Hist2D>::GetAlgorithm () const
 template<class Hist, class Hist2D> void
 RooUnfoldInvertT<Hist,Hist2D>::Unfold() const
 {
-  TMatrixD res(this->_res->Mresponse(true));
-  if (this->_nt>this->_nm) {
-    TMatrixD resT (TMatrixD::kTransposed, res);
-    _svd= new TDecompSVD (resT);
-    delete _resinv; _resinv= 0;
-  } else
-    _svd= new TDecompSVD (res);
-  double c = _svd->Condition();
-  if (c<0) std::cout << "WARNING: Response matrix is ill-conditioned. TDecompSVD condition number = " << c << std::endl;
-
-  this->_cache._rec.ResizeTo(this->_nm);
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
+  this->_cache._rec.ResizeTo(nm);
   this->_cache._rec= this->Vmeasured();
 
   if (this->_res->HasFakes()) {
@@ -99,13 +92,14 @@ RooUnfoldInvertT<Hist,Hist2D>::Unfold() const
   }
 
   Bool_t ok;
-  if (this->_nt>this->_nm) {
-    ok= InvertResponse();
+  ok= InvertResponse();
+  if (nt>nm) {
     if (ok) this->_cache._rec *= *_resinv;
-  } else
+  } else {
     ok= _svd->Solve (this->_cache._rec);
-
-  this->_cache._rec.ResizeTo(this->_nt);
+  }
+  
+  this->_cache._rec.ResizeTo(nt);
   if (!ok) {
     std::cerr << "Response matrix Solve failed" << std::endl;
     return;
@@ -119,31 +113,57 @@ template<class Hist, class Hist2D> void
 RooUnfoldInvertT<Hist,Hist2D>::GetCov() const
 {
   //! Get covariance matrix
+
+  int nt = this->response()->Vtruth().GetNrows();  
   if (!InvertResponse()) return;
-  this->_cache._cov.ResizeTo(this->_nt,this->_nt);
+  this->_cache._cov.ResizeTo(nt,nt);
   ABAT (*_resinv, this->GetMeasuredCov(), this->_cache._cov);
   this->_cache._haveCov= true;
+}
+
+template<class Hist, class Hist2D> const TMatrixD&
+RooUnfoldInvertT<Hist,Hist2D>::InverseResponse() const
+{
+  if (!this->InvertResponse()){
+    throw std::runtime_error("unable to invert response!");
+  }
+  return *_resinv;
 }
 
 template<class Hist, class Hist2D> Bool_t
 RooUnfoldInvertT<Hist,Hist2D>::InvertResponse() const
 {
-    if (!_svd)   return false;
-    if (_resinv) return true;
-    if (this->_nt>this->_nm) _resinv= new TMatrixD(this->_nm,this->_nt);
-    else         _resinv= new TMatrixD(this->_nt,this->_nm);
+  if (_resinv) return true;
+
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+
+  TMatrixD res(this->_res->Mresponse(true));
+  if (nt>nm) {
+    TMatrixD resT (TMatrixD::kTransposed, res);
+    _svd= new TDecompSVD (resT);
+    delete _resinv;
+    _resinv= 0;
+  } else {
+    _svd= new TDecompSVD (res);
+  }
+  double c = _svd->Condition();
+  if (c<0) std::cout << "WARNING: Response matrix is ill-conditioned. TDecompSVD condition number = " << c << std::endl;
+  
+  if (nt>nm) _resinv= new TMatrixD(nm,nt);
+  else         _resinv= new TMatrixD(nt,nm);
 #if ROOT_VERSION_CODE >= ROOT_VERSION(5,13,4)  /* TDecompSVD::Invert() didn't have ok status before 5.13/04. */
-    Bool_t ok;
-    *_resinv=_svd->Invert(ok);
-    if (!ok) {
-      std::cerr << "response matrix inversion failed" << std::endl;
-      return false;
-    }
+  Bool_t ok;
+  *_resinv=_svd->Invert(ok);
+  if (!ok) {
+    std::cerr << "response matrix inversion failed" << std::endl;
+    return false;
+  }
 #else
-    *_resinv=_svd->Invert();
+  *_resinv=_svd->Invert();
 #endif
-    if (this->_nt>this->_nm) _resinv->T();
-    return true;
+  if (nt>nm) _resinv->T();
+  return true;
 }
 
 // Inline method definitions

@@ -151,12 +151,15 @@ template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::SetBinCenters() const
 {
 
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();
+  
   Double_t delta_truBins = 0.0;
   Double_t delta_obsBins = 0.0;
 
   if (_kernel == 1){
-    delta_truBins = 1 / (Double_t)(this->_nt - 2);
-    delta_obsBins = 1 / (Double_t)(this->_nm - 2);
+    delta_truBins = 1 / (Double_t)(nt - 2);
+    delta_obsBins = 1 / (Double_t)(nm - 2);
   }
   if (_kernel == 2){
     Double_t trumin = ::min(this->_res->Htruth(),RooUnfolding::X);
@@ -164,15 +167,15 @@ RooUnfoldGPT<Hist,Hist2D>::SetBinCenters() const
     Double_t obsmin = ::min(this->_res->Hmeasured(),RooUnfolding::X);
     Double_t obsmax = ::max(this->_res->Hmeasured(),RooUnfolding::X);
 
-    delta_truBins = fabs(trumax - trumin) / (Double_t)(this->_nt);
-    delta_obsBins = fabs(obsmax - obsmin) / (Double_t)(this->_nm);
+    delta_truBins = fabs(trumax - trumin) / (Double_t)(nt);
+    delta_obsBins = fabs(obsmax - obsmin) / (Double_t)(nm);
   }
    
   Double_t truBin_0 = - delta_truBins/2.0;
   Double_t obsBin_0 = - delta_obsBins/2.0;
 
-  _specialcache._truBinCenters.ResizeTo(this->_nt);
-  _specialcache._obsBinCenters.ResizeTo(this->_nm);
+  _specialcache._truBinCenters.ResizeTo(nt);
+  _specialcache._obsBinCenters.ResizeTo(nm);
   
   for (int i = 0; i < _specialcache._truBinCenters.GetNrows(); i++){
     _specialcache._truBinCenters[i] = truBin_0 + i * delta_truBins;
@@ -207,6 +210,9 @@ RooUnfoldGPT<Hist,Hist2D>::SetFitSettings() const
 template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::Unfold() const
 {
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();
+  
   if (_kernel == 2){
     std::cout << "ERROR: The Gibbs kernel is not fully implemented yet. Please use the radial kernel for now." << std::endl;
     return;
@@ -240,7 +246,7 @@ RooUnfoldGPT<Hist,Hist2D>::Unfold() const
   MAPEstimator();
 
   // Pass the solutions.
-  this->_cache._rec.ResizeTo(this->_nt);
+  this->_cache._rec.ResizeTo(nt);
   this->_cache._rec = _specialcache._MAPEst;
 
   this->_cache._unfolded= true;
@@ -250,7 +256,9 @@ template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::GetCov() const
 {
   MAPCovariance();
-  this->_cache._cov.ResizeTo(this->_nt,this->_nt);
+  int nt = this->response()->Vtruth().GetNrows();
+
+  this->_cache._cov.ResizeTo(nt,nt);
   this->_cache._cov = _specialcache._MAPCov;
   this->_cache._haveCov= true;
 }
@@ -258,9 +266,12 @@ RooUnfoldGPT<Hist,Hist2D>::GetCov() const
 template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::MLEstimator() const
 {
-
+  
   TMatrixD res(this->_res->Mresponse(true));
-  if (this->_nt>this->_nm) {
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();
+  
+  if (nt>nm) {
     TMatrixD resT (TMatrixD::kTransposed, res);
     _specialcache._svd= new TDecompSVD (resT);
     delete _specialcache._resinv; _specialcache._resinv= 0;
@@ -270,7 +281,7 @@ RooUnfoldGPT<Hist,Hist2D>::MLEstimator() const
   double c = _specialcache._svd->Condition();
   if (c<0 && (this->_verbose>0)) std::cout << "WARNING: Response matrix is ill-conditioned. TDecompSVD condition number = " << c << std::endl;
 
-  _specialcache._MLEst.ResizeTo(this->_nm);
+  _specialcache._MLEst.ResizeTo(nm);
   _specialcache._MLEst= this->Vmeasured();
 
 
@@ -288,13 +299,13 @@ RooUnfoldGPT<Hist,Hist2D>::MLEstimator() const
   }
 
   Bool_t ok;
-  if (this->_nt>this->_nm) {
+  if (nt>nm) {
     ok= InvertResponse();
     if (ok) _specialcache._MLEst *= *_specialcache._resinv;
   } else
     ok= _specialcache._svd->Solve (_specialcache._MLEst);
 
-  _specialcache._MLEst.ResizeTo(this->_nt);
+  _specialcache._MLEst.ResizeTo(nt);
   if (!ok) {
     std::cerr << "Response matrix Solve failed" << std::endl;
     return;
@@ -305,15 +316,18 @@ RooUnfoldGPT<Hist,Hist2D>::MLEstimator() const
 template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::MLCovariance() const
 {
-  TMatrixD cov(this->_nm, this->_nm);  
+  int nt = this->response()->Vtruth().GetNrows();  
+  int nm = this->response()->Vmeasured().GetNrows();
+  
+  TMatrixD cov(nm, nm);  
   TVectorD nu = this->_res->Vmeasured();
 
-  for (int i = 0; i < this->_nm; i++){
+  for (int i = 0; i < nm; i++){
     cov(i,i) = nu(i);
   }
 
     if (!InvertResponse()) return;
-    _specialcache._MLCov.ResizeTo(this->_nt,this->_nt);
+    _specialcache._MLCov.ResizeTo(nt,nt);
     ABAT (*_specialcache._resinv, cov, _specialcache._MLCov);
     
     _specialcache._haveMLCov = true;
@@ -324,12 +338,14 @@ template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::MAPEstimator() const
 {
 
+  int nt = this->response()->Vtruth().GetNrows();  
+  
   TMatrixD KUML_INV(_specialcache._K + _specialcache._MLCov);
   TMatrixD KT(_specialcache._K);
   KUML_INV.Invert();
   KT.T();
 
-  _specialcache._MAPEst.ResizeTo(this->_nt);
+  _specialcache._MAPEst.ResizeTo(nt);
 
   _specialcache._MAPEst = MultiplyMatrixVector( (KT * KUML_INV) , _specialcache._MLEst);
 }
@@ -338,14 +354,15 @@ RooUnfoldGPT<Hist,Hist2D>::MAPEstimator() const
 template<class Hist, class Hist2D> void
 RooUnfoldGPT<Hist,Hist2D>::MAPCovariance() const
 {
-
+  int nt = this->response()->Vtruth().GetNrows();  
+  
   TMatrixD KUML_INV(_specialcache._K + _specialcache._MLCov);
   TMatrixD KT(_specialcache._K);
   KUML_INV.Invert();
   KT.T();
 
 
-  _specialcache._MAPCov.ResizeTo(this->_nt,this->_nt);
+  _specialcache._MAPCov.ResizeTo(nt,nt);
 
   _specialcache._MAPCov = _specialcache._K - (KT * KUML_INV) * _specialcache._K;  
 }
@@ -353,10 +370,13 @@ RooUnfoldGPT<Hist,Hist2D>::MAPCovariance() const
 template<class Hist, class Hist2D> Bool_t
 RooUnfoldGPT<Hist,Hist2D>::InvertResponse() const
 {
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
     if (!_specialcache._svd)   return false;
     if (_specialcache._resinv) return true;
-    if (this->_nt>this->_nm) _specialcache._resinv= new TMatrixD(this->_nm,this->_nt);
-    else         _specialcache._resinv= new TMatrixD(this->_nt,this->_nm);
+    if (nt>nm) _specialcache._resinv= new TMatrixD(nm,nt);
+    else         _specialcache._resinv= new TMatrixD(nt,nm);
 #if ROOT_VERSION_CODE >= ROOT_VERSION(5,13,4)  /* TDecompSVD::Invert() didn't have ok status before 5.13/04. */
     Bool_t ok;
     *_specialcache._resinv=_specialcache._svd->Invert(ok);
@@ -367,7 +387,7 @@ RooUnfoldGPT<Hist,Hist2D>::InvertResponse() const
 #else
     *_specialcache._resinv=_specialcache._svd->Invert();
 #endif
-    if (this->_nt>this->_nm) _specialcache._resinv->T();
+    if (nt>nm) _specialcache._resinv->T();
     return true;
 }
 
@@ -536,11 +556,14 @@ RooUnfoldGPT<Hist,Hist2D>::MinimizeMLH() const
 template<class Hist, class Hist2D> Double_t
 RooUnfoldGPT<Hist,Hist2D>::MarginalLH(const double *params) const
 {
+
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
   
   Double_t first_term;
   Double_t second_term;
 
-  if (this->_nt > this->_nm){
+  if (nt > nm){
     std::cerr << "To many truth bins w.r.t. observed bins.";
   }
 

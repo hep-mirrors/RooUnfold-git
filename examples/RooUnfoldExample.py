@@ -71,6 +71,8 @@ elif method == "root":
   unfold= ROOT.RooUnfoldTUnfold (response, hMeas);         #  OR
 elif method == "ids":
   unfold= ROOT.RooUnfoldIds     (response, hMeas, 3);      #  OR
+elif method == "tunfold":
+  unfold= ROOT.RooUnfoldTUnfold     (response, hMeas, 0.1);      #  OR  
 
 hUnfold= unfold.Hunfold();
 

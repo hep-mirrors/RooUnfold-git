@@ -9,6 +9,7 @@
 #include <RooHistFunc.h>
 
 class RooProdPdf;
+class THStack;
 
 //! \class RooUnfoldSpec
 //! \brief Specifications class to build models based on RooUnfold in a RooFit context
@@ -22,25 +23,30 @@ public:
                      kTruth,
                      kMeasured
   };
+  typedef std::vector<RooAbsReal*> ShapeSys;
+  typedef std::vector<double> NormSys;
 
 protected:
   bool _locked = false;
   void lockCheck();
 
+public:
   class HistContainer {
-    friend RooUnfoldSpec;
+  public:    
     RooAbsReal* _nom = 0;
     RooAbsReal* _staterror = 0;
+    RooArgSet _obs;
     std::vector<RooRealVar*> _gammas;    
-    std::map<const std::string,std::vector<RooAbsReal*> > _shapes;
-    std::map<const std::string,std::pair<double,double> > _norms;
+    std::map<const std::string,ShapeSys> _shapes;
+    std::map<const std::string,NormSys> _norms;
     ~HistContainer();
-    void setNominal(RooAbsReal* nom);
+    void setNominal(RooAbsReal* nom, const RooArgList& obslist);
     void setNominal(const TH1* nom, const RooArgList& obslist, double errorThreshold = -1, bool includeUnderflowOverflow = false, bool useDensity = false);
     void setNominal(RooDataHist* data, const RooArgList& obslist);
     void addShape(const char* name, RooAbsReal* up, RooAbsReal* dn);
     void addNorm(const char* name, double up, double dn);
   };
+protected:
   bool _includeUnderflowOverflow = false;
   bool _useDensity = false;
   double _errorThreshold = -1;
@@ -74,6 +80,7 @@ protected:
   void makeReco();
   void makeDataMinusBackground();
 
+  void checkConsistency(const HistContainer& cont, const TH1* hist);  
 
   Cache _cache;
 
@@ -118,8 +125,23 @@ public:
   RooUnfolding::RooFitHist* makeHistogram(const TH1* hist);
   RooHistFunc* makeHistFuncTruth(const TH1* hist);
   RooHistFunc* makeHistFuncMeasured(const TH1* hist);
+  TMatrixD makeCovarianceMatrix() const;
+  TH2* makeCovarianceHistogram() const;
+  THStack* makeMeasuredBreakdownHistogram() const;
+  THStack* makeTruthBreakdownHistogram() const;  
 
+  const RooArgList& getTruthObservables() const { return _obs_truth; }
+  const RooArgList& getRecoObservables() const { return _obs_reco; }
+  const RooArgList& getObservables() const { return _obs_all; }
+
+  std::map<std::string, TH1*> createHistogramDictionary() const;
+  std::string createLikelihoodConfig() const;
+  
 protected:
+  void addToCovarianceMatrix(const HistContainer& histContainer, TMatrixD& covarianceMatrix) const;
+  void addShapeToCovarianceMatrix(const HistContainer& cont, const ShapeSys& var, TMatrixD& covarianceMatrix) const;
+  void addStatToCovarianceMatrix(const HistContainer& histContainer, TMatrixD& covarianceMatrix) const;
+  void addNormToCovarianceMatrix(const HistContainer& cont, const NormSys& var, TMatrixD& covarianceMatrix) const;
   void setup(const TH1* truth_th1, const RooArgList& obs_truth, const TH1* reco_th1, const RooArgList& obs_reco, const TH2* response_th1, const TH1* bkg_th1, const TH1* data_th1, bool includeUnderflowOverflow, double errorThreshold = -1, bool useDensity = false);
   ClassDef(RooUnfoldSpec,0)
 };

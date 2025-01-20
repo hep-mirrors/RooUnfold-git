@@ -92,7 +92,8 @@ RooUnfoldPoissonT<Hist,Hist2D>::Unfold() const
     return;
   }
 
-  this->_cache._rec.ResizeTo(this->_nt);
+  int nt = this->response()->Vtruth().GetNrows();    
+  this->_cache._rec.ResizeTo(nt);
 
   this->_cache._rec = this->_unfolded;
   this->_cache._unfolded= true;
@@ -109,7 +110,8 @@ RooUnfoldPoissonT<Hist,Hist2D>::GetCov() const
   }
 
   // Get covariance.
-  this->_cache._cov.ResizeTo (this->_nt, this->_nt);
+  int nt = this->response()->Vtruth().GetNrows();    
+  this->_cache._cov.ResizeTo (nt, nt);
 
   this->_cache._cov = this->_covariance;
   this->_cache._haveCov= true;
@@ -129,22 +131,25 @@ RooUnfoldPoissonT<Hist,Hist2D>::GetSettings() const
 template<class Hist,class Hist2D> void
 RooUnfoldPoissonT<Hist,Hist2D>::setup() const
 {
+  int nt = this->response()->Vtruth().GetNrows();
+  int nm = this->response()->Vmeasured().GetNrows();  
+
   this->_min_status = 0;
   this->_min_print = 0;
-  this->_unfolded.ResizeTo(this->_nt);
-  this->_covariance.ResizeTo(this->_nt,this->_nt);
-  this->_response.ResizeTo(this->_nm,this->_nt);
+  this->_unfolded.ResizeTo(nt);
+  this->_covariance.ResizeTo(nt,nt);
+  this->_response.ResizeTo(nm,nt);
   this->_response = this->_res->Mresponse(true);
-  this->_data.ResizeTo(this->_nm);
+  this->_data.ResizeTo(nm);
   this->_data = this->Vmeasured();
-  this->_truth_start.ResizeTo(this->_nt);
+  this->_truth_start.ResizeTo(nt);
   this->_truth_start = this->_res->Vtruth();
-  this->_truth_edges.ResizeTo(this->_nt + 1);
+  this->_truth_edges.ResizeTo(nt + 1);
   this->_RegLLH_factor = 1;
 
   const Hist* truth = this->_res->Htruth();
   this->_truth_edges[0] = binLowEdge(truth,0,RooUnfolding::X);
-  for (int i = 0; i < this->_nt; i++){
+  for (int i = 0; i < nt; i++){
     this->_truth_edges[i+1] = binHighEdge(truth,i,RooUnfolding::X);
   }
 }
@@ -230,6 +235,8 @@ RooUnfoldPoissonT<Hist,Hist2D>::RegLLH(const double* truth) const
 template<class Hist,class Hist2D> void
 RooUnfoldPoissonT<Hist,Hist2D>::MinimizeRegLLH() const
 {
+  int nt = this->response()->Vtruth().GetNrows();
+  
   ROOT::Math::Minimizer* min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
  
   min->SetMaxFunctionCalls(1000000000);
@@ -267,7 +274,7 @@ RooUnfoldPoissonT<Hist,Hist2D>::MinimizeRegLLH() const
 
   _min_status = min->Status();
 
-  for (int i = 0; i < this->_nt; i++){
+  for (int i = 0; i < nt; i++){
     _unfolded[i] = (min->X())[i];
   }
 
@@ -340,14 +347,16 @@ void  RooUnfoldPoissonT<Hist,Hist2D>::SetPrintLevel (Int_t print)
 template<class Hist,class Hist2D>
 void  RooUnfoldPoissonT<Hist,Hist2D>::SetMinimizerStart (const Hist* truth)
 {
-  if (nBins(truth,this->_overflow) != this->_nt){
+  int nt = this->response()->Vtruth().GetNrows();
+  
+  if (nBins(truth,this->_overflow) != nt){
     std::cerr << "Passed truth distribution for minimizer start point has wrong dimensions";
     std::cerr << "Passed truth distribution dim: " << nBins(truth,this->_overflow);
-    std::cerr << "Required dim: " << this->_nt;
+    std::cerr << "Required dim: " << nt;
     return;
   }
 
-  for (int i = 0; i < nBins(truth,this->_overflow); i++){
+  for (int i = 0; i < nt; i++){
     this->_truth_start(i) = binContent(truth, i, this->_overflow);
   }
 }
@@ -356,10 +365,12 @@ void  RooUnfoldPoissonT<Hist,Hist2D>::SetMinimizerStart (const Hist* truth)
 template<class Hist,class Hist2D>
 void  RooUnfoldPoissonT<Hist,Hist2D>::SetMinimizerStart (TVectorD truth)
 {
-  if (truth.GetNrows() != this->_nt){
+  int nt = this->response()->Vtruth().GetNrows();
+  
+  if (truth.GetNrows() != nt){
     std::cerr << "Passed truth distribution for minimizer start point has wrong dimensions";
     std::cerr << "Passed truth distribution dim: " << truth.GetNrows();
-    std::cerr << "Required dim: " << this->_nt;
+    std::cerr << "Required dim: " << nt;
     return;
   }
 

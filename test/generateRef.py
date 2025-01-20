@@ -95,7 +95,7 @@ def generate_ref_bin_correlation():
 
 def generate_ref_overflow():
     parms = {
-        'overflow': ['1', '2'],
+        'overflow': ['0', '1', '2'],
         'verbose': ['3']
     }
     ref_file_name = basefolder + "/ref/overflow.ref"

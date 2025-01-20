@@ -38,6 +38,13 @@ if v15 of TUnfold is used. ROOT versions 5.26 or below use v13 and so should be 
 
 using namespace RooUnfolding;
 
+template<class Hist,class Hist2D> RooUnfolding::Algorithm
+RooUnfoldTUnfoldT<Hist,Hist2D>::GetAlgorithm () const
+{
+  //! return the unfolding algorithm used
+  return kTUnfold;
+}
+
 template<class Hist,class Hist2D>
 RooUnfoldTUnfoldT<Hist,Hist2D>::RooUnfoldTUnfoldT (const RooUnfoldTUnfoldT& rhs)
 : RooUnfoldT<Hist,Hist2D> (rhs)
@@ -161,48 +168,90 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::GetLogTauY() const
   return _logTauY;
 }
 
+namespace {
+  bool IsRowEmpty(const TMatrixD& matrix, int row) {
+    for (int col = 0; col < matrix.GetNcols(); ++col) {
+      if (matrix(row, col) != 0) {
+	return false;
+      }
+    }
+    return true;
+  }
+
+  bool IsColumnEmpty(const TMatrixD& matrix, int col) {
+    for (int row = 0; row < matrix.GetNrows(); ++row) {
+      if (matrix(row, col) != 0) {
+	return false;
+      }
+    }
+    return true;
+  }
+
+  bool CheckEmptyRowsAndColumns(const TMatrixD& matrix) {
+    // Check rows
+    bool anyEmpty = false;
+    for (int row = 0; row < matrix.GetNrows(); ++row) {
+      if (IsRowEmpty(matrix, row)) {
+	std::cout << "Row " << row << " is completely empty." << std::endl;
+	anyEmpty = true;
+      }
+    }
+
+    // Check columns
+    for (int col = 0; col < matrix.GetNcols(); ++col) {
+      if (IsColumnEmpty(matrix, col)) {
+	std::cout << "Column " << col << " is completely empty." << std::endl;
+	anyEmpty = true;	
+      }
+    }
+    return anyEmpty;
+  }
+}
+
 template<class Hist,class Hist2D>void
 RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 {
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();
+
+  if(CheckEmptyRowsAndColumns(this->response()->Mresponse(false))){
+    throw std::runtime_error("TUnfold cannot deal with empty rows or columns in the response matrix, please reduce your histogram range!");
+  }
+  
   // Does the unfolding. Uses the optimal value of the unfolding parameter unless a value has already been set using FixTau
-  if (this->_nm<this->_nt)     std::cerr << "Warning: fewer measured bins than truth bins. TUnfold may not work correctly." << std::endl;
+  if (nm<nt)     std::cerr << "Warning: fewer measured bins than truth bins. TUnfold may not work correctly." << std::endl;
   if (this->_covMes) std::cerr << "Warning: TUnfold does not account for bin-bin correlations on measured input"    << std::endl;
 
   Bool_t oldstat= TH1::AddDirectoryStatus();
   TH1::AddDirectory (kFALSE);
-
-  TVectorD vmeas = this->Vmeasured();
-  TVectorD verr = this->Emeasured();
+  TVectorD vmeas(this->Vmeasured());
+  TVectorD verr(this->Emeasured());
   const TVectorD& vtruth(this->_res->Vtruth());
-  TMatrixD mres = this->_res->Mresponse(false);
-  
+  TMatrixD mres(this->_res->Mresponse(false));
   // The added empty bins are used to store inefficiencies.
   RooUnfolding::addEmptyBins(vmeas);
   RooUnfolding::addEmptyBins(verr);
   RooUnfolding::addEmptyBins(mres);  
 
   TH1::AddDirectory (oldstat);
-    
   // Add inefficiencies to measured overflow bin
-  for (Int_t j= 1; j<=this->_nt; j++) {
+  for (Int_t j= 1; j<=nt; j++) {
     Double_t ntru= 0.0;
-    for (Int_t i= 1; i<=this->_nm; i++) {
+    for (Int_t i= 1; i<=nm; i++) {
       ntru += mres[i][j];
     }
-    mres[this->_nm + 1][j] = vtruth[j - 1] - ntru;
+    mres[nm + 1][j] = vtruth[j - 1] - ntru;
   }
-    
   // Subtract fakes from measured distribution
   if (this->_res->HasFakes() && _handleFakes) {
     TVectorD fakes= this->_res->Vfakes();
     Double_t fac= this->_res->Vmeasured().Sum();
     if (fac!=0.0) fac=  this->Vmeasured().Sum() / fac;
     if (this->_verbose>=1) std::cout << "Subtract " << fac*fakes.Sum() << " fakes from measured distribution" << std::endl;
-    for (Int_t i = 1; i<=this->_nm; i++){
+    for (Int_t i = 1; i<=nm; i++){
       vmeas[i] = vmeas[i] - (fac*fakes[i - 1]);
     }
   }
-
   Int_t ndim = dim(this->_meas);
   TUnfold::ERegMode reg= _reg_method;
   
@@ -215,7 +264,7 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 #endif
     _unf= new TUnfoldV17(&mres,TUnfold::kHistMapOutputVert,reg);
   }
-  
+
   if        (ndim == 2) {
     Int_t nx= nBins(this->_meas,X), ny= nBins(this->_meas,Y);
     _unf->RegularizeBins2D (0, 1, nx, nx, ny, _reg_method);
@@ -268,10 +317,10 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::Unfold() const
 
   _unf->DoUnfold(_tau);
 
-  TH1F reco("_cache._rec","reconstructed dist",this->_nt,0.0,this->_nt);
+  TH1F reco("_cache._rec","reconstructed dist",nt,0.0,nt);
   _unf->GetOutput(&reco);
-  this->_cache._rec.ResizeTo (this->_nt);
-  for (int i=0;i<this->_nt;i++){
+  this->_cache._rec.ResizeTo (nt);
+  for (int i=0;i<nt;i++){
     this->_cache._rec(i)=(reco.GetBinContent(i + 1));
   }
 
@@ -289,8 +338,11 @@ template<class Hist,class Hist2D>void
 RooUnfoldTUnfoldT<Hist,Hist2D>::GetCov() const
 {
   //! Get covariance matrix
+  int nm = this->response()->Vmeasured().GetNrows();  
+  int nt = this->response()->Vtruth().GetNrows();  
+  
   if (!_unf) return;
-  TH2* ematrix= new TH2D ("ematrix","error matrix", this->_nt, 0.0, this->_nt, this->_nt, 0.0, this->_nt);
+  TH2* ematrix= new TH2D ("ematrix","error matrix", nt, 0.0, nt, nt, 0.0, nt);
   if (this->_dosys!=2) _unf->GetEmatrix (ematrix);
   if (this->_dosys) {
 #ifndef NOTUNFOLDSYS
@@ -301,9 +353,9 @@ RooUnfoldTUnfoldT<Hist,Hist2D>::GetCov() const
 #endif
       std::cerr << "Did not use TUnfoldSys, so cannot calculate systematic errors" << std::endl;
   }
-  this->_cache._cov.ResizeTo (this->_nt,this->_nt);
-  for (Int_t i= 0; i<this->_nt; i++) {
-    for (Int_t j= 0; j<this->_nt; j++) {
+  this->_cache._cov.ResizeTo (nt,nt);
+  for (Int_t i= 0; i<nt; i++) {
+    for (Int_t j= 0; j<nt; j++) {
       this->_cache._cov(i,j)= ematrix->GetBinContent(i+1,j+1);
     }
   }

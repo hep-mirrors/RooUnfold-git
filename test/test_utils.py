@@ -107,7 +107,7 @@ def compare(all_output, ref_file_name, test_name, allowed_difference):
         data = json.load(f)
 
     if len(data) != len(all_output):
-        print("Number of parms not same")
+        print("Dataset lengths are different: {:d} vs. {:d}".format(len(data),len(all_output)))
         return 1
     for parm, value in data.items():
         for field, num_list in value.items():
@@ -130,6 +130,7 @@ def perform_test(parms, ref_file_name, test_name, field_to_compare, allowed_diff
     delete_files()
     for single_parm in combined_parm:
         command_str = "../build/RooUnfoldTest " +  single_parm
+        print(command_str)
         os.system(command_str)
         u = get_field("RooUnfoldTest.root", field_to_compare)
         all_output[single_parm] = u
