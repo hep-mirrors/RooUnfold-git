@@ -145,6 +145,7 @@ namespace RooUnfolding {
   bool sanitize(TMatrixD& mat,double t = 1e-9);  
   TMatrixD& ABAT (const TMatrixD& a, const TMatrixD& b, TMatrixD& c);
   TMatrixD& ABAT (const TMatrixD& a, const TVectorD& b, TMatrixD& c);
+  TVectorD& ABwithError(const TMatrixD& matrix, const TMatrixD& matrixErrors, const TVectorD& vector, const TVectorD& vectorErrors, TVectorD& result, TVectorD& resultErrors);  
   template<class Hist> RooUnfolding::Variable<Hist> var(const Hist* h, Dimension d);
   template<class Hist> std::vector<RooUnfolding::Variable<Hist>> vars(const Hist* h);
 

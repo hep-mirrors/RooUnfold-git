@@ -260,6 +260,31 @@ namespace RooUnfolding {
     return c;
   }
 
+
+  // Function to perform matrix-vector multiplication with Gaussian error propagation
+  TVectorD& ABwithError(const TMatrixD& matrix, const TMatrixD& matrixErrors, const TVectorD& vector, const TVectorD& vectorErrors, TVectorD& result, TVectorD& resultErrors) {
+    result.ResizeTo(matrix.GetNrows());
+    resultErrors.ResizeTo(matrix.GetNrows());
+
+    result = matrix * vector;
+    
+    for (int i = 0; i < matrix.GetNrows(); ++i) {
+      double errorSquared = 0.0;
+      
+      for (int j = 0; j < matrix.GetNcols(); ++j) {
+	double m_ij = matrix(i, j);
+	double m_err_ij = matrixErrors(i, j);
+	double v_j = vector(j);
+	double v_err_j = vectorErrors(j);
+	errorSquared += std::pow(m_err_ij * v_j, 2) + std::pow(m_ij * v_err_j, 2);
+      }
+      
+      resultErrors(i) = std::sqrt(errorSquared);
+    }
+    return result;
+  }
+  
+
   void printTable (std::ostream& o, int dim, int ntxb, int ntyb,
                    const TVectorD& vTrainTrue, const TVectorD& vTrain, const TVectorD& vTrue,const TVectorD& vMeas, const TVectorD& vReco,
                    ErrorTreatment withError, const TVectorD& eTrue, const TVectorD& eReco, double chi_squ, bool overflow){

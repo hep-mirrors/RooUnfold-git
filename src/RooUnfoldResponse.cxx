@@ -259,7 +259,7 @@ RooUnfoldResponseT<Hist,Hist2D>::ApplyToTruth (const Hist* truth, const char* na
 
   // If no truth histogram input, use training truth
   // If truth histogram input, make sure its binning is correct
-  TVectorD resultvect;
+  TVectorD truthvect, trutherrorvect;
   if (truth) {
     if (nBins(truth,RooUnfolding::X) != nBins(_tru,RooUnfolding::X) ||
         nBins(truth,RooUnfolding::Y) != nBins(_tru,RooUnfolding::Y) ||
@@ -267,16 +267,20 @@ RooUnfoldResponseT<Hist,Hist2D>::ApplyToTruth (const Hist* truth, const char* na
       cerr << "Warning: RooUnfoldResponseT<Hist,Hist2D>::ApplyToTruth truth histogram is a different size ("
            << (nBins(truth,RooUnfolding::X) * nBins(truth,RooUnfolding::Y) * nBins(truth,RooUnfolding::Z)) << " bins) or shape from response matrix truth ("
            << ( nBins(_tru,RooUnfolding::X) * nBins( _tru,RooUnfolding::Y) * nBins( _tru,RooUnfolding::Z)) << " bins)" << endl;
-    h2v (truth, resultvect, _overflow,_density);
+    h2v (truth,  truthvect, _overflow, _density);
+    h2ve(truth,  trutherrorvect, _overflow, _density);
   } else {
-    resultvect= Vtruth();
+    truthvect= Vtruth();
+    trutherrorvect= Etruth();
   }
 
-  resultvect *= Mresponse();   // v= A*v
+  // Do the calculation with error propagation
+  TVectorD resultvect, resulterrorvect;
+  RooUnfolding::ABwithError(Mresponse(),Eresponse(),truthvect,trutherrorvect,resultvect,resulterrorvect);
 
   // Turn results vector into properly binned histogram
   const Hist* t = Hmeasured();
-  Hist* result= createHist<Hist>(resultvect, RooUnfolding::name(t),name, vars(t), _overflow);
+  Hist* result= createHist<Hist>(resultvect, resulterrorvect, RooUnfolding::name(t),name, vars(t), _overflow);
   return result;
 }
 
