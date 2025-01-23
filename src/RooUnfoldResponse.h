@@ -116,7 +116,7 @@ private:
 
 public:
 
-  ClassDefOverride (RooUnfoldResponseT, 1) // Respose Matrix
+  ClassDefOverride (RooUnfoldResponseT, 2) // Respose Matrix
 };
 
 //=====================================================================-*-C++-*-
