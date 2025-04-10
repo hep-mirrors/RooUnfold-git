@@ -882,7 +882,11 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   };
   auto writeHistogram = [&](auto& h, JSONNode& node){
     node.set_map();
-    node["contents"] << h2v(h,false,_useDensity);
+    auto v = h2v(h,false,_useDensity);
+    node["contents"].set_seq();
+    for(size_t i=0; i<v.size(); ++i){
+      node["contents"].append_child() << v[i];
+    }
   };  
   auto writeAxes = [&](JSONNode& axes){
     for(auto& obs:this->_obs_reco){
