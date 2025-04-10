@@ -808,8 +808,44 @@ std::vector<std::vector<double>> getBinCenters(const RooArgList& vars) {
   }  
 }
 
+namespace {
+  template <typename K, typename V>
+  void expand_key_set(std::unordered_set<std::string>& key_set, const std::map<const K, V>& new_map) {
+    for (const auto& [key, _] : new_map) {
+      key_set.insert(key);
+    }
+  }
+  std::pair<double, std::vector<double>> factorize_sys(const std::vector<double>& nominal,const std::vector<double>& variation){
+    if (nominal.size() != variation.size()) {
+      throw std::invalid_argument("Input vectors must have the same length.");
+    }
+    
+    double sum_nominal = std::accumulate(nominal.begin(), nominal.end(), 0.0);
+    double sum_variation = std::accumulate(variation.begin(), variation.end(), 0.0);
+    
+    if (sum_nominal == 0.0 || sum_variation == 0.0) {
+      throw std::runtime_error("Sum of elements in 'nominal' or 'variation' must not be zero.");
+    }
+    
+    double total_ratio = sum_variation / sum_nominal;
+    
+    std::vector<double> component_ratios;
+    component_ratios.reserve(nominal.size());
+    
+    for (size_t i = 0; i < nominal.size(); ++i) {
+      double ratio = (variation[i] / sum_variation) / (nominal[i] / sum_nominal);
+      component_ratios.push_back(ratio);
+    }
+    bool has_shape = false;
+    for (size_t i = 0; i < component_ratios.size(); ++i) {
+      if(component_ratios[i] != 1.) has_shape = true;
+    }
+    if(!has_shape) component_ratios.clear();
+    return { total_ratio, component_ratios };
+  }
+}
 
-std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool xs_pois) const {
+std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois) const {
     // Create the JSON tree and set up the root node
   using namespace RooFit::Detail;
   auto tree = JSONTree::create();
@@ -924,40 +960,83 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool xs_pois) const 
   // this is the part where the actual unfolding happens
   const auto& truth_bins = getBinCenters(_obs_truth);
   const auto& reco_bins = getBinCenters(_obs_reco);
-  std::vector<std::vector<double> > final_response;
-  std::vector<double> fiducial_yields;
-  for(const auto& truth_bin : truth_bins){
-    setValues(_obs_truth,truth_bin);
-    double fiducial_yield = _truth._nom->getVal() * binVolume(_obs_truth);
-    fiducial_yields.push_back(fiducial_yield);
-    final_response.push_back(std::vector<double>());
-  }
-  final_response.push_back(std::vector<double>());   // this is for fakes
-  std::vector<double> fakes;
-  double total_fakes = 0;
-  for(const auto& reco_bin : reco_bins){
-    setValues(_obs_reco,reco_bin);
-    double observed_yield = _reco._nom->getVal() * binVolume(_obs_reco);
-    double sum_fiducial_yields = 0;
-    int i_truth=0;    
+  struct Folding {
+    std::vector<std::vector<double> > response;
+    std::vector<double> fiducial;
+  };
+  
+  auto calculate_folding = [&](RooAbsReal* truth, RooAbsReal* res, RooAbsReal* reco){
+    Folding result;
     for(const auto& truth_bin : truth_bins){
       setValues(_obs_truth,truth_bin);
-      double fiducial_yield = _truth._nom->getVal() * binVolume(_obs_truth);      
-      double response_yield = _res._nom->getVal() * binVolume(_obs_truth) * binVolume(_obs_reco);      
-      double response_function = response_yield/fiducial_yield;
-      final_response[i_truth].push_back(xs_pois ? response_function : response_function * fiducial_yield);
-      sum_fiducial_yields += response_function * fiducial_yield;
-      ++i_truth;
+      double fiducial_yield = truth->getVal() * binVolume(_obs_truth);
+      result.fiducial.push_back(fiducial_yield);
+      result.response.push_back(std::vector<double>());
     }
-    double fake_yield = std::max(0.,observed_yield - sum_fiducial_yields);
-    total_fakes += fake_yield;
-    fakes.push_back(fake_yield);
-  }
-  fiducial_yields.push_back(total_fakes);
-  for(size_t i=0; i<reco_bins.size(); ++i){
-    final_response[truth_bins.size()].push_back(xs_pois ? fakes[i] / total_fakes : fakes[i]);
-  }
+    result.response.push_back(std::vector<double>());   // this is for fakes
+    std::vector<double> fakes;
+    double total_fakes = 0;
+    for(const auto& reco_bin : reco_bins){
+      setValues(_obs_reco,reco_bin);
+      double observed_yield = reco->getVal() * binVolume(_obs_reco);
+      double sum_fiducial_yields = 0;
+      int i_truth=0;    
+      for(const auto& truth_bin : truth_bins){
+	setValues(_obs_truth,truth_bin);
+	double fiducial_yield = truth->getVal() * binVolume(_obs_truth);      
+	double response_yield = res->getVal() * binVolume(_obs_truth) * binVolume(_obs_reco);      
+	double response_function = response_yield/fiducial_yield;
+	result.response[i_truth].push_back(xs_pois ? response_function : response_function * fiducial_yield);
+	sum_fiducial_yields += response_function * fiducial_yield;
+	++i_truth;
+      }
+      double fake_yield = std::max(0.,observed_yield - sum_fiducial_yields);
+      total_fakes += fake_yield;
+      fakes.push_back(fake_yield);
+    }
+    result.fiducial.push_back(total_fakes);
+    for(size_t i=0; i<reco_bins.size(); ++i){
+      result.response[truth_bins.size()].push_back(xs_pois ? fakes[i] / total_fakes : fakes[i]);
+    }
+    return result;
+  };
+  
+  auto nominal_folding = calculate_folding(_truth._nom,_res._nom,_reco._nom);
 
+  std::unordered_set<std::string> systematics;
+  if(include_sys){
+    expand_key_set(systematics,_truth._shapes);
+    expand_key_set(systematics,_res._shapes);
+    expand_key_set(systematics,_reco._shapes);
+  }
+  std::map<std::string,Folding> up_systematics;
+  std::map<std::string,Folding> dn_systematics;  
+  for(const auto& k:systematics){
+    auto* truth_up = _truth._nom;
+    auto*  reco_up = _reco._nom;
+    auto*   res_up = _res._nom;
+    auto* truth_dn = _truth._nom;
+    auto*  reco_dn = _reco._nom;
+    auto*   res_dn = _res._nom;    
+    auto truth_sys = _truth._shapes.find(k);
+    auto reco_sys = _truth._shapes.find(k);
+    auto res_sys = _truth._shapes.find(k);
+    if(truth_sys != _truth._shapes.end()){
+      truth_up = truth_sys->second[0];
+      truth_dn = truth_sys->second[1];
+    }
+    if(reco_sys != _reco._shapes.end()){
+      reco_up = reco_sys->second[0];
+      reco_up = reco_sys->second[1];
+    }
+    if(res_sys != _res._shapes.end()){
+      res_up = res_sys->second[0];
+      res_up = res_sys->second[1];
+    }
+    up_systematics[k] = calculate_folding(truth_up,res_up,reco_up);
+    dn_systematics[k] = calculate_folding(truth_dn,res_dn,reco_dn);
+  }
+  
   // add everything to the json structure
   int i_truth = 0;
   std::vector<std::string> poi_names, poi_nomnames;
@@ -968,16 +1047,39 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool xs_pois) const 
     signal["name"] << "signal_"+truth_cat;
 
     auto& data = signal["data"].set_map();
-    data["contents"] << final_response[i_truth];
+    data["contents"] << nominal_folding.response[i_truth];
     
-    auto& modifiers = signal["modifiers"].set_seq();
-    auto& xs = modifiers.append_child().set_map();
     std::string poi = (xs_pois ? "xs_" : "mu_" ) + truth_cat;
     std::string poi_nom = "nom_"+poi;
+
+    auto& modifiers = signal["modifiers"].set_seq();
+    
+    auto& xs = modifiers.append_child().set_map();
     pois.append_child() << poi;
     xs["name"] << poi;
     xs["type"] << "normfactor";
-    double poival = xs_pois ? fiducial_yields[i_truth] : 1.;
+    for(const auto& k:systematics){
+      auto up = factorize_sys(nominal_folding.response[i_truth],up_systematics[k].response[i_truth]);
+      auto dn = factorize_sys(nominal_folding.response[i_truth],dn_systematics[k].response[i_truth]);
+      if(up.first != 1 || dn.first != 1.){
+	auto& normsys = modifiers.append_child().set_map();
+	normsys["name"] << k;
+	normsys["type"] << "normsys";
+	auto& normdata = normsys["data"].set_map();
+	normdata["hi"] << up.first; 
+	normdata["lo"] << dn.first;
+      }
+      if(up.second.size()>0 || dn.second.size()>0){
+	auto& shapesys = modifiers.append_child().set_map();
+	shapesys["name"] << k;
+	shapesys["type"] << "histosys";
+	auto& shapedata = shapesys["data"].set_map();
+	if(up.second.size()>0) shapedata["hi"].fill_seq(up.second); 
+	if(dn.second.size()>0) shapedata["lo"].fill_seq(dn.second);	
+      }
+    }
+    
+    double poival = xs_pois ? nominal_folding.fiducial[i_truth] : 1.;
     writeParameter(default_parameters, poi, poival);
     writeParameter(background_parameters, poi, 0);
     writeParameter(default_parameters, poi_nom, poival, true);
