@@ -101,6 +101,8 @@ namespace RooUnfolding {
   TH1* convertTH1(const TVectorD& values, const TVectorD& errors, const RooUnfolding::RooFitHist* hist);
   TH1* convertTH1(const TVectorD& values, const RooUnfolding::RooFitHist* hist);
   TH2* convertTH2(const TMatrixD& values, const TMatrixD& errors, const RooUnfolding::RooFitHist* hist);
+
+  TH1* get_unfolded_histogram(RooWorkspace* workspace, const TH1* hist_template, const std::string& parameter_template);  
 }
 
 #endif
