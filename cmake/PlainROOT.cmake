@@ -1,4 +1,13 @@
-find_package( ROOT COMPONENTS Tree Matrix Hist RIO MathCore Physics RooFitCore RooFit HistFactory Graf Postscript Gpad XMLParser)
+find_package( ROOT REQUIRED COMPONENTS Tree Matrix Hist RIO MathCore Physics RooFitCore RooFit HistFactory Graf Postscript Gpad XMLParser )
+# Then, try to find the optional RooFitJSONInterface (won't fail if missing!)
+find_package(ROOT COMPONENTS RooFitJSONInterface)
+
+if (TARGET ROOT::HistFactory)
+    message(STATUS "HistFactory found. Adding it manually to ROOT_LIBRARIES.")
+    list(APPEND ROOT_LIBRARIES ROOT::HistFactory)
+else()
+    message(FATAL_ERROR "HistFactory not found, but required.")
+endif()
 
 if(${ROOT_FOUND})
   message("Setup using plain ROOT")    
