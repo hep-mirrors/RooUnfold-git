@@ -884,7 +884,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     node.set_map();
     auto v = h2v(h,false,_useDensity);
     node["contents"].set_seq();
-    for(size_t i=0; i<v.size(); ++i){
+    for(size_t i=0; i<v.Length(); ++i){
       node["contents"].append_child() << v[i];
     }
   };  
