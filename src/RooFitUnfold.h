@@ -134,8 +134,7 @@ public:
   const RooArgList& getRecoObservables() const { return _obs_reco; }
   const RooArgList& getObservables() const { return _obs_all; }
 
-  std::map<std::string, TH1*> createHistogramDictionary() const;
-  std::string createLikelihoodConfig() const;
+  std::string createLikelihoodJSON(double tau, bool xs_pois=true) const;
   
 protected:
   void addToCovarianceMatrix(const HistContainer& histContainer, TMatrixD& covarianceMatrix) const;

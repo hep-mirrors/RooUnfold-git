@@ -26,6 +26,7 @@
 #endif
 #include "RooBinning.h"
 
+#include "TVectorD.h"
 #include "THStack.h"
 #include <RooFit/Detail/JSONInterface.h>
 
@@ -764,96 +765,266 @@ namespace {
   }
 }
 
-std::map<std::string, TH1*> RooUnfoldSpec::createHistogramDictionary() const {
-  std::vector<RooRealVar*> observables;
-  for (auto& obs : _obs_reco) {
-    observables.push_back(static_cast<RooRealVar*>(obs));
-  }
+namespace {
+std::vector<std::vector<double>> getBinCenters(const RooArgList& vars) {
+    size_t numVars = vars.getSize();
+    std::vector<std::vector<double>> result;
+    std::vector<size_t> counters(numVars, 0);
 
-  std::map<std::string, TH1*> histograms;
-  addSampleToDictionary<TH1>("reco_sig", _reco, histograms, observables, _useDensity);
-  addSampleToDictionary<TH1>("bkg", _bkg, histograms, observables, _useDensity);
-  addSampleToDictionary<TH1>("truth_sig", _truth, histograms, observables, _useDensity);
-  addSampleToDictionary<TH2>("response", _res, histograms, observables, _useDensity);
-  return histograms;
+    while (true) {
+        std::vector<double> binCenter(numVars);
+        bool done = true;
+
+        for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
+            auto* var = dynamic_cast<RooRealVar*>(vars.at(varIdx));
+            if (!var) throw std::runtime_error("Non-RooRealVar object in RooArgList.");
+
+            size_t numBins = var->numBins();
+            binCenter[varIdx] = var->getBinning().binCenter(counters[varIdx]);
+
+            if (counters[varIdx] < numBins - 1) done = false;
+        }
+
+        result.push_back(std::move(binCenter));
+
+        if (done) break;
+
+        for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
+            auto* var = dynamic_cast<RooRealVar*>(vars.at(varIdx));
+            if (++counters[varIdx] < var->numBins()) {
+                break;
+            } else {
+                counters[varIdx] = 0;
+            }
+        }
+    }
+
+    return result;
+}
+  void setValues(const RooArgList& vars, const std::vector<double>& values){
+    for(size_t i=0; i<vars.size(); ++i){
+      static_cast<RooRealVar*>(&vars[i])->setVal(values[i]);
+    }
+  }  
 }
 
 
-std::string RooUnfoldSpec::createLikelihoodConfig() const {
-  auto tree = RooFit::Detail::JSONTree::create();
-  auto &root = tree->rootnode();
+std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool xs_pois) const {
+    // Create the JSON tree and set up the root node
+  using namespace RooFit::Detail;
+  auto tree = JSONTree::create();
+  auto& root = tree->rootnode();
   root.set_map();
 
-  // Settings
-  auto &settings = root["settings"].set_map();
-  settings["include_systematics"] << false;
-  settings["prune_systematics_threshold"] << 0;
-  settings["prune_migration_threshold"] << 0;
+  // Add metadata
+  root["metadata"].set_map()["hs3_version"] << "0.2";
 
-  // Channels
-  auto &channels = root["channels"].set_map();
-  auto &channel = channels["reco_SR"].set_map();
+  // Initialize JSON structure elements
+  auto& distributions = root["distributions"].set_seq();
+  auto& functions = root["functions"].set_seq();
+  auto& domains = root["domains"].set_seq();
+  auto& parameter_points = root["parameter_points"].set_seq();
+  auto& data = root["data"].set_seq();
+  auto& likelihoods = root["likelihoods"].set_seq();
+  auto& analyses = root["analyses"].set_seq();
 
-  // Variables
-  auto &variables = channel["variables"].set_seq();
-  variables.append_child() << "reco_x";
 
-  // Samples
-  auto &samples = channel["samples"].set_map();
-
-  auto addSampleToJSON = [&](const std::string& histString, const HistContainer& cont, RooFit::Detail::JSONNode &target) {
-    target["data"] << histString;
-
-    auto &modifiers = target["modifiers"].set_seq();
-
-    for (const auto& var : cont._shapes) {
-      std::string shape_up = histString + "_shape_up_" + var.first;
-      std::string shape_down = histString + "_shape_down_" + var.first;
-
-      auto &mod = modifiers.append_child().set_map();
-      mod["name"] << histString + "_shape_var_" + var.first;
-      mod["type"] << "histosys";
-      auto &data = mod["data"].set_map();
-      data["hi"] << shape_up;
-      data["lo"] << shape_down;
-    }
-
-    for (const auto& var : cont._norms) {
-      std::string norm_up = histString + "_norm_up_" + var.first;
-      std::string norm_down = histString + "_norm_down_" + var.first;
-
-      auto &mod = modifiers.append_child().set_map();
-      mod["name"] << histString + "_norm_var_" + var.first;
-      mod["type"] << "normsys";
-      auto &data = mod["data"].set_map();
-      data["hi"] << norm_up;
-      data["lo"] << norm_down;
+  auto writeObservable = [&](RooRealVar* r, JSONNode& axes){
+    auto& obs = axes.append_child().set_map();
+    obs["name"] << r->GetName();
+    if(!r->getBinning().isUniform()){
+      auto& bounds = obs["edges"].set_seq();
+      bounds.append_child() << r->getBinning().binLow(0);      
+      for(size_t i=0; i<r->numBins(); ++i){
+	bounds.append_child() << r->getBinning().binHigh(i);
+      }
+    } else {
+      obs["nbins"] << r->getBinning().numBins();
+      obs["min"] << r->getMin();
+      obs["max"] << r->getMax();
     }
   };
-    
-  auto &reco_sig_sample = samples["signal"].set_map();
-  addSampleToJSON("reco_sig", _reco, reco_sig_sample);
-  auto &reco_bkg_sample = samples["background"].set_map();
-  addSampleToJSON("bkg", _bkg, reco_bkg_sample);
-    
-  // Unfolding
-  auto &unfolding = reco_sig_sample["unfolding"].set_map();
-  auto &regularize = unfolding["regularize"].set_map();
-  regularize["type"] << "tikhonov";
-  regularize["strength"] << 0.1;
-  regularize["curvature"] << "ss";
-  unfolding["poi"] << "xs";
-  unfolding["poitype"] << "cs";
-    
-  auto &truth = unfolding["truth"].set_map();
-  addSampleToJSON("truth_sig", _truth, truth);
-    
-  auto &migration = unfolding["migration"].set_map();
-  addSampleToJSON("response", _res, migration);
+  auto writeHistogram = [&](auto& h, JSONNode& node){
+    node.set_map();
+    node["contents"] << h2v(h,false,_useDensity);
+  };  
+  auto writeAxes = [&](JSONNode& axes){
+    for(auto& obs:this->_obs_reco){
+      writeObservable(static_cast<RooRealVar*>(obs), axes);
+    }
+  };
+  auto writeParameter = [&](JSONNode& paramlist, const std::string& name, double value, bool constant=false){
+    auto& p = paramlist.append_child().set_map();
+    p["name"] << name;
+    p["value"] << value;
+    if(constant){
+      p["const"] << 1;
+    }
+  };
+  auto writeDomain = [&](JSONNode& paramlist, const std::string& name, double min, double max){
+    auto& p = paramlist.append_child().set_map();
+    p["name"] << name;
+    p["min"] << min;
+    p["max"] << max;
+  };
+  auto binVolume = [&](const RooArgList& observables){
+    double v = 1;
+    for(auto* x:observables){
+      RooRealVar* obs = static_cast<RooRealVar*>(x);      
+      const int binIdx = obs->getBinning().binNumber(obs->getVal());
+      v *= obs->getBinning().binWidth(binIdx);
+    }
+    return v;
+  };
 
-  // Convert the JSON configuration to a string
+  // Add domains and parameter points
+  auto& default_domain = domains.append_child().set_map();
+  default_domain["name"] << "default_domain";
+  default_domain["type"] << "product_domain";
+  auto& default_axes = default_domain["axes"].set_seq();
+  for(auto& v:this->_obs_reco){
+    RooRealVar* obs = static_cast<RooRealVar*>(v);
+    writeDomain(default_axes, obs->GetName(), obs->getMin(), obs->getMax());
+  }
+  
+  auto& default_values = parameter_points.append_child().set_map();
+  default_values["name"] << "default_values";
+  auto& default_parameters = default_values["parameters"].set_seq();
+
+  auto& background_values = parameter_points.append_child().set_map();
+  background_values["name"] << "background_only";
+  auto& background_parameters = background_values["parameters"].set_seq();
+
+  // Add likelihood and analyses
+  auto& simultaneous_likelihood = likelihoods.append_child().set_map();
+  simultaneous_likelihood["name"] << "simultaneous_likelihood";
+  simultaneous_likelihood["data"].set_seq();
+  simultaneous_likelihood["distributions"].set_seq();
+  simultaneous_likelihood["aux_distributions"].set_seq();
+
+  auto& unfolded_analysis = analyses.append_child().set_map();
+  unfolded_analysis["name"] << "unfolded_model";
+  unfolded_analysis["likelihood"] << "simultaneous_likelihood";
+  auto& pois = unfolded_analysis["parameters_of_interest"].set_seq();
+  
+  auto& signalregion = distributions.append_child().set_map();
+  signalregion["type"] << "histfactory_dist";
+  writeAxes(signalregion["axes"].set_seq());  
+  auto& pdf_name = "reco_SR";  
+  signalregion["name"] << pdf_name;
+  simultaneous_likelihood["distributions"].append_child() << pdf_name;
+  auto& samples = signalregion["samples"].set_seq();
+
+  // add the background sample
+  auto& background = samples.append_child().set_map();
+  background["name"] << "background";
+  writeHistogram(_bkg._nom,background["data"]);
+  auto& bkg_modifiers = background["modifiers"].set_seq();
+  
+  // this is the part where the actual unfolding happens
+  const auto& truth_bins = getBinCenters(_obs_truth);
+  const auto& reco_bins = getBinCenters(_obs_reco);
+  std::vector<std::vector<double> > final_response;
+  std::vector<double> fiducial_yields;
+  for(const auto& truth_bin : truth_bins){
+    setValues(_obs_truth,truth_bin);
+    double fiducial_yield = _truth._nom->getVal() * binVolume(_obs_truth);
+    fiducial_yields.push_back(fiducial_yield);
+    final_response.push_back(std::vector<double>());
+  }
+  final_response.push_back(std::vector<double>());   // this is for fakes
+  std::vector<double> fakes;
+  double total_fakes = 0;
+  for(const auto& reco_bin : reco_bins){
+    setValues(_obs_reco,reco_bin);
+    double observed_yield = _reco._nom->getVal() * binVolume(_obs_reco);
+    double sum_fiducial_yields = 0;
+    int i_truth=0;    
+    for(const auto& truth_bin : truth_bins){
+      setValues(_obs_truth,truth_bin);
+      double fiducial_yield = _truth._nom->getVal() * binVolume(_obs_truth);      
+      double response_yield = _res._nom->getVal() * binVolume(_obs_truth) * binVolume(_obs_reco);      
+      double response_function = response_yield/fiducial_yield;
+      final_response[i_truth].push_back(xs_pois ? response_function : response_function * fiducial_yield);
+      sum_fiducial_yields += response_function * fiducial_yield;
+      ++i_truth;
+    }
+    double fake_yield = std::max(0.,observed_yield - sum_fiducial_yields);
+    total_fakes += fake_yield;
+    fakes.push_back(fake_yield);
+  }
+  fiducial_yields.push_back(total_fakes);
+  for(size_t i=0; i<reco_bins.size(); ++i){
+    final_response[truth_bins.size()].push_back(xs_pois ? fakes[i] / total_fakes : fakes[i]);
+  }
+
+  // add everything to the json structure
+  int i_truth = 0;
+  std::vector<std::string> poi_names, poi_nomnames;
+  for(size_t i_truth=0; i_truth<=truth_bins.size(); ++i_truth){
+    auto& signal = samples.append_child().set_map();
+    std::string truth_cat = "fakes";
+    if(i_truth < truth_bins.size()) truth_cat = TString::Format("bin_%d",i_truth+1).Data();
+    signal["name"] << "signal_"+truth_cat;
+
+    auto& data = signal["data"].set_map();
+    data["contents"] << final_response[i_truth];
+    
+    auto& modifiers = signal["modifiers"].set_seq();
+    auto& xs = modifiers.append_child().set_map();
+    std::string poi = (xs_pois ? "xs_" : "mu_" ) + truth_cat;
+    std::string poi_nom = "nom_"+poi;
+    pois.append_child() << poi;
+    xs["name"] << poi;
+    xs["type"] << "normfactor";
+    double poival = xs_pois ? fiducial_yields[i_truth] : 1.;
+    writeParameter(default_parameters, poi, poival);
+    writeParameter(background_parameters, poi, 0);
+    writeParameter(default_parameters, poi_nom, poival, true);
+    writeDomain(default_axes, poi, 0, fabs(10*poival));    
+    poi_names.push_back(poi);
+    poi_nomnames.push_back(poi_nom);
+  }
+
+  // create regularization term
+  if(tau > 0){
+    std::stringstream tikhonov_differential;
+    for(size_t i=1; i<poi_names.size()-2; ++i){ // skip fakes
+      if(i>1) tikhonov_differential << "+";
+      tikhonov_differential << "pow(" << 
+	poi_names[i-1] << "/" << poi_nomnames[i-1] <<
+	"-2*" << poi_names[i] << "/" << poi_nomnames[i] <<
+	"+" << poi_names[i+1] << "/" << poi_nomnames[i+1] <<
+	",2)";
+    }
+    auto& regularization_dist = distributions.append_child().set_map();
+    regularization_dist["type"] << "exponential_dist";
+    regularization_dist["x"] << "tikhonov_differential";
+    regularization_dist["c"] << "tau";
+    regularization_dist["name"] << "regularization";
+    auto& regularization_func = functions.append_child().set_map();
+    regularization_func["type"] << "generic_function";
+    regularization_func["name"] << "tikhonov_differential";
+    regularization_func["expression"] << tikhonov_differential.str().c_str();
+    simultaneous_likelihood["aux_distributions"].append_child() << "regularization";
+    auto& tau_val = default_parameters.append_child().set_map();
+    tau_val["name"] << "tau";
+    tau_val["value"] << tau;;
+    tau_val["const"] << 1;    
+  }
+
+  // Add data
+  std::string data_name = "measured_data";
+  auto& data_entry = data.append_child().set_map();
+  writeHistogram(_data._nom,data_entry);
+  writeAxes(data_entry["axes"].set_seq());  
+  data_entry["name"] << data_name;
+  data_entry["type"] << "binned";
+  simultaneous_likelihood["data"].append_child() << data_name;
+
+  // Serialize the tree to a string
   std::stringstream ss;
-  ss << root;
+  root.writeJSON(ss);
   return ss.str();
 }
 
@@ -1202,8 +1373,6 @@ void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, double 
 }
 
 
-
-
 #ifdef NO_WRAPPERPDF
 RooAbsPdf* RooUnfoldSpec::makePdf(Algorithm /*alg*/, Double_t /*regparam*/){
   throw std::runtime_error("need RooWrapperPdf to create unfolding Pdfs, upgrade ROOT version!");
@@ -1238,5 +1407,4 @@ RooAbsReal* RooUnfoldSpec::makeFunc(Algorithm alg, Double_t regparam){
 ClassImp(RooUnfoldSpec)
 
 #endif
-
 
