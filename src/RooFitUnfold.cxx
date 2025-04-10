@@ -843,6 +843,18 @@ namespace {
     if(!has_shape) component_ratios.clear();
     return { total_ratio, component_ratios };
   }
+  void fill_vector(RooFit::Detail::JSONNode& node, const TVectorD& v){
+    node.set_seq();
+    for(size_t i=0; i<v.GetNrows(); ++i){
+      node.append_child() << v[i];
+    }
+  }
+  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v){
+    node.set_seq();
+    for(size_t i=0; i<v.size(); ++i){
+      node.append_child() << v[i];
+    }
+  }
 }
 
 std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois) const {
@@ -882,11 +894,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   };
   auto writeHistogram = [&](auto& h, JSONNode& node){
     node.set_map();
-    auto v = h2v(h,false,_useDensity);
-    node["contents"].set_seq();
-    for(size_t i=0; i<v.GetNrows(); ++i){
-      node["contents"].append_child() << v[i];
-    }
+    fill_vector(node["contents"],h2v(h,false,_useDensity));
   };  
   auto writeAxes = [&](JSONNode& axes){
     for(auto& obs:this->_obs_reco){
@@ -1051,7 +1059,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     signal["name"] << "signal_"+truth_cat;
 
     auto& data = signal["data"].set_map();
-    data["contents"] << nominal_folding.response[i_truth];
+    fill_vector(data["contents"],nominal_folding.response[i_truth]);
     
     std::string poi = (xs_pois ? "xs_" : "mu_" ) + truth_cat;
     std::string poi_nom = "nom_"+poi;
@@ -1078,8 +1086,8 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
 	shapesys["name"] << k;
 	shapesys["type"] << "histosys";
 	auto& shapedata = shapesys["data"].set_map();
-	if(up.second.size()>0) shapedata["hi"].fill_seq(up.second); 
-	if(dn.second.size()>0) shapedata["lo"].fill_seq(dn.second);	
+	if(up.second.size()>0) fill_vector(shapedata["hi"],up.second);
+	if(dn.second.size()>0) fill_vector(shapedata["lo"],dn.second);	
       }
     }
     
