@@ -806,6 +806,9 @@ std::vector<std::vector<double>> getBinCenters(const RooArgList& vars) {
       static_cast<RooRealVar*>(&vars[i])->setVal(values[i]);
     }
   }  
+  std::vector<double> v2v(const TVectorD& v){
+    return std::vector<double>(v.data(),v.data()+v.GetNrows());
+  }  
 }
 
 namespace {
@@ -815,32 +818,64 @@ namespace {
       key_set.insert(key);
     }
   }
-  std::pair<double, std::vector<double>> factorize_sys(const std::vector<double>& nominal,const std::vector<double>& variation){
+  bool isCloseTo(double val, double ref, double tolerance){
+    return std::fabs(val - ref) <= tolerance;
+  }  
+  bool isCloseToOne(double val, double tolerance){
+    return isCloseTo(val,1.,tolerance);
+  }
+  void clearIfCloseToOne(std::vector<double>& vec, double tolerance) {
+    for (double val : vec) {
+      if (!isCloseToOne(val,tolerance)){
+	return;  // Found a value that deviates too much — do nothing
+      }
+    }
+    vec.clear();  // All values are within tolerance — clear the vector
+  }
+  double sanitize_ratio(double ratio, double bineff) {
+    const double a = 0.001;  // full suppression below this
+    const double b = 0.1;    // no effect above this
+    
+    double w;
+    if (bineff <= a) {
+      w = 0.0;
+    } else if (bineff >= b) {
+      w = 1.0;
+    } else {
+      double t = (bineff - a) / (b - a);
+      w = t * t * (3 - 2 * t);  // smoothstep
+    }
+    
+    return 1.0 + (ratio - 1.0) * w;
+  }
+  
+  
+  std::pair<double, std::vector<double>> factorize_sys(const std::vector<double>& nominal,const std::vector<double>& variation, bool sanitize){
     if (nominal.size() != variation.size()) {
       throw std::invalid_argument("Input vectors must have the same length.");
     }
     
     double sum_nominal = std::accumulate(nominal.begin(), nominal.end(), 0.0);
-    double sum_variation = std::accumulate(variation.begin(), variation.end(), 0.0);
-    
+    double sum_variation = std::accumulate(variation.begin(), variation.end(), 0.0);    
+
+    std::vector<double> component_ratios;
+    component_ratios.reserve(nominal.size());
     if (sum_nominal == 0.0 || sum_variation == 0.0) {
-      throw std::runtime_error("Sum of elements in 'nominal' or 'variation' must not be zero.");
+      return {1., component_ratios };
     }
     
     double total_ratio = sum_variation / sum_nominal;
-    
-    std::vector<double> component_ratios;
-    component_ratios.reserve(nominal.size());
-    
     for (size_t i = 0; i < nominal.size(); ++i) {
-      double ratio = (variation[i] / sum_variation) / (nominal[i] / sum_nominal);
-      component_ratios.push_back(ratio);
+      const double v = variation[i]/sum_variation * sum_nominal;
+      const double n = nominal[i];
+      double ratio = v/n;
+      const double bineff = fabs(n/sum_nominal*nominal.size());
+      if(n == 0.){
+	ratio = 1.;
+      } 
+      component_ratios.push_back(sanitize ? sanitize_ratio(ratio,bineff) : ratio);
     }
-    bool has_shape = false;
-    for (size_t i = 0; i < component_ratios.size(); ++i) {
-      if(component_ratios[i] != 1.) has_shape = true;
-    }
-    if(!has_shape) component_ratios.clear();
+    clearIfCloseToOne(component_ratios,1e-6);
     return { total_ratio, component_ratios };
   }
   void fill_vector(RooFit::Detail::JSONNode& node, const TVectorD& v){
@@ -849,15 +884,15 @@ namespace {
       node.append_child() << v[i];
     }
   }
-  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v){
+  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v, bool flip = false){
     node.set_seq();
     for(size_t i=0; i<v.size(); ++i){
-      node.append_child() << v[i];
+      node.append_child() << (flip ? 2.-v[i] : v[i]);
     }
   }
 }
 
-std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois) const {
+std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois, bool sanitize_sys) const {
     // Create the JSON tree and set up the root node
   using namespace RooFit::Detail;
   auto tree = JSONTree::create();
@@ -875,7 +910,6 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   auto& data = root["data"].set_seq();
   auto& likelihoods = root["likelihoods"].set_seq();
   auto& analyses = root["analyses"].set_seq();
-
 
   auto writeObservable = [&](RooRealVar* r, JSONNode& axes){
     auto& obs = axes.append_child().set_map();
@@ -925,14 +959,38 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     return v;
   };
 
+  // Add likelihood and analyses
+  auto& simultaneous_likelihood = likelihoods.append_child().set_map();
+  simultaneous_likelihood["name"] << "simultaneous_likelihood";
+  simultaneous_likelihood["data"].set_seq();
+  simultaneous_likelihood["distributions"].set_seq();
+  simultaneous_likelihood["aux_distributions"].set_seq();
+
+  auto& unfolded_analysis = analyses.append_child().set_map();
+  std::string model_name = "unfolded_model";
+  unfolded_analysis["name"] << model_name;
+  unfolded_analysis["likelihood"] << "simultaneous_likelihood";
+  auto& analysis_domains = unfolded_analysis["domains"].set_seq();
+  auto& pois = unfolded_analysis["parameters_of_interest"].set_seq();
+
+  auto createDomain = [&](const std::string& name, bool attach) -> JSONNode& {
+    auto& domain = domains.append_child().set_map();
+    if(attach) analysis_domains.append_child() << name;
+    domain["name"] << name;
+    domain["type"] << "product_domain";
+    return domain["axes"].set_seq();
+  };
+  
   // Add domains and parameter points
-  auto& default_domain = domains.append_child().set_map();
-  default_domain["name"] << "default_domain";
-  default_domain["type"] << "product_domain";
-  auto& default_axes = default_domain["axes"].set_seq();
+  auto& default_axes = createDomain("default_domain",false);
+  auto& poi_axes = createDomain(model_name+"_parameters_of_interest",true);
+  auto& obs_axes = createDomain(model_name+"_observables",true);
+  auto& globs_axes = createDomain(model_name+"_global_observables",true);  
+  auto& np_axes = createDomain(model_name+"_nuisance_parameters",true);
+
   for(auto& v:this->_obs_reco){
     RooRealVar* obs = static_cast<RooRealVar*>(v);
-    writeDomain(default_axes, obs->GetName(), obs->getMin(), obs->getMax());
+    writeDomain(obs_axes, obs->GetName(), obs->getMin(), obs->getMax());
   }
   
   auto& default_values = parameter_points.append_child().set_map();
@@ -943,18 +1001,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   background_values["name"] << "background_only";
   auto& background_parameters = background_values["parameters"].set_seq();
 
-  // Add likelihood and analyses
-  auto& simultaneous_likelihood = likelihoods.append_child().set_map();
-  simultaneous_likelihood["name"] << "simultaneous_likelihood";
-  simultaneous_likelihood["data"].set_seq();
-  simultaneous_likelihood["distributions"].set_seq();
-  simultaneous_likelihood["aux_distributions"].set_seq();
-
-  auto& unfolded_analysis = analyses.append_child().set_map();
-  unfolded_analysis["name"] << "unfolded_model";
-  unfolded_analysis["likelihood"] << "simultaneous_likelihood";
-  auto& pois = unfolded_analysis["parameters_of_interest"].set_seq();
-  
+  // add distributions
   auto& signalregion = distributions.append_child().set_map();
   signalregion["type"] << "histfactory_dist";
   writeAxes(signalregion["axes"].set_seq());  
@@ -964,10 +1011,58 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   auto& samples = signalregion["samples"].set_seq();
 
   // add the background sample
-  auto& background = samples.append_child().set_map();
-  background["name"] << "background";
-  writeHistogram(_bkg._nom,background["data"]);
-  auto& bkg_modifiers = background["modifiers"].set_seq();
+  if(_bkg._nom){
+    auto& background = samples.append_child().set_map();
+    background["name"] << "background";
+    writeHistogram(_bkg._nom,background["data"]);
+    auto& modifiers = background["modifiers"].set_seq();
+    auto& bkg_nf = modifiers.append_child().set_map();
+    bkg_nf["type"] << "normfactor";
+    bkg_nf["name"] << "bkg_norm";
+    writeParameter(default_parameters, "bkg_norm", 1., true);
+    writeDomain(np_axes, "bkg_norm", 0, 50.);
+    auto nom = v2v(h2v(_bkg._nom,false,_useDensity));
+    double sum_nom = std::accumulate(nom.begin(), nom.end(), 0.0);    
+    for(const auto& shape: _bkg._shapes){
+      if(!shape.second.size() == 2){
+	throw std::runtime_error("cannot deal with bkg systematics that are not up/down");
+      } 
+      auto up = v2v(h2v(shape.second[0],false,_useDensity));
+      auto dn = v2v(h2v(shape.second[1],false,_useDensity));
+      double sum_up = std::accumulate(up.begin(), up.end(), 0.0);
+      double sum_dn = std::accumulate(dn.begin(), dn.end(), 0.0);
+      std::vector<double> up_rel, dn_rel;
+      for(size_t i=0; i<nom.size(); ++i){
+	up_rel.push_back((up[i]/sum_up*sum_nom)/nom[i]);
+	dn_rel.push_back((dn[i]/sum_dn*sum_nom)/nom[i]);
+      }
+      clearIfCloseToOne(up_rel,1e-6);
+      clearIfCloseToOne(dn_rel,1e-6);
+      std::string pname;
+      if(!isCloseToOne(sum_up/sum_nom,1e-6) || !isCloseToOne(sum_dn/sum_nom,1e-6)){
+	auto& normsys = modifiers.append_child().set_map();
+	normsys["name"] << shape.first;
+	normsys["type"] << "normsys";
+	pname = "alpha_"+shape.first;
+	auto& normdata = normsys["data"].set_map();
+	normdata["hi"] << sum_up/sum_nom;
+	normdata["lo"] << sum_dn/sum_nom;
+	normdata["parameter"] << pname;	
+      }
+      if(up_rel.size()>0 || dn_rel.size()>0){
+	auto& shapesys = modifiers.append_child().set_map();
+	shapesys["name"] << shape.first;
+	shapesys["type"] << "histosys";
+	pname = "alpha_"+shape.first;	
+	auto& shapedata = shapesys["data"].set_map();
+	if(up_rel.size()>0) fill_vector(shapedata["hi"].set_map()["contents"],up_rel);
+	else                fill_vector(shapedata["hi"].set_map()["contents"],dn_rel,true);
+	if(dn_rel.size()>0) fill_vector(shapedata["lo"].set_map()["contents"],dn_rel);
+	else                fill_vector(shapedata["hi"].set_map()["contents"],up_rel,true);
+	shapedata["parameter"] << pname;	
+      }
+    }
+  }
   
   // this is the part where the actual unfolding happens
   const auto& truth_bins = getBinCenters(_obs_truth);
@@ -1031,19 +1126,22 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     auto*  reco_dn = _reco._nom;
     auto*   res_dn = _res._nom;    
     auto truth_sys = _truth._shapes.find(k);
-    auto reco_sys = _truth._shapes.find(k);
-    auto res_sys = _truth._shapes.find(k);
+    auto reco_sys  =  _reco._shapes.find(k);
+    auto res_sys   =   _res._shapes.find(k);
     if(truth_sys != _truth._shapes.end()){
+      if(truth_sys->second.size() != 2) throw std::runtime_error("cannot deal with truth systematics that are not up/down");
       truth_up = truth_sys->second[0];
       truth_dn = truth_sys->second[1];
     }
     if(reco_sys != _reco._shapes.end()){
+      if(reco_sys->second.size() != 2) throw std::runtime_error("cannot deal with reco systematics that are not up/down");
       reco_up = reco_sys->second[0];
-      reco_up = reco_sys->second[1];
+      reco_dn = reco_sys->second[1];
     }
     if(res_sys != _res._shapes.end()){
+      if(res_sys->second.size() != 2) throw std::runtime_error("cannot deal with resolution systematics that are not up/down");      
       res_up = res_sys->second[0];
-      res_up = res_sys->second[1];
+      res_dn = res_sys->second[1];
     }
     up_systematics[k] = calculate_folding(truth_up,res_up,reco_up);
     dn_systematics[k] = calculate_folding(truth_dn,res_dn,reco_dn);
@@ -1052,6 +1150,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   // add everything to the json structure
   int i_truth = 0;
   std::vector<std::string> poi_names, poi_nomnames;
+  std::unordered_set<std::string> np_names;
   for(size_t i_truth=0; i_truth<=truth_bins.size(); ++i_truth){
     auto& signal = samples.append_child().set_map();
     std::string truth_cat = "fakes";
@@ -1071,33 +1170,47 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     xs["name"] << poi;
     xs["type"] << "normfactor";
     for(const auto& k:systematics){
-      auto up = factorize_sys(nominal_folding.response[i_truth],up_systematics[k].response[i_truth]);
-      auto dn = factorize_sys(nominal_folding.response[i_truth],dn_systematics[k].response[i_truth]);
-      if(up.first != 1 || dn.first != 1.){
+      auto up = factorize_sys(nominal_folding.response[i_truth],up_systematics[k].response[i_truth],sanitize_sys);
+      auto dn = factorize_sys(nominal_folding.response[i_truth],dn_systematics[k].response[i_truth],sanitize_sys);
+      std::string pname;
+      if(!isCloseToOne(up.first,1e-6) || !isCloseToOne(dn.first,1e-6)){
 	auto& normsys = modifiers.append_child().set_map();
 	normsys["name"] << k;
 	normsys["type"] << "normsys";
+	pname = "alpha_"+k;
 	auto& normdata = normsys["data"].set_map();
 	normdata["hi"] << up.first; 
 	normdata["lo"] << dn.first;
+	normdata["parameter"] << pname;
       }
       if(up.second.size()>0 || dn.second.size()>0){
 	auto& shapesys = modifiers.append_child().set_map();
 	shapesys["name"] << k;
 	shapesys["type"] << "histosys";
+	pname = "alpha_"+k;
 	auto& shapedata = shapesys["data"].set_map();
-	if(up.second.size()>0) fill_vector(shapedata["hi"],up.second);
-	if(dn.second.size()>0) fill_vector(shapedata["lo"],dn.second);	
+	if(up.second.size()>0) fill_vector(shapedata["hi"].set_map()["contents"],up.second);
+	else                   fill_vector(shapedata["hi"].set_map()["contents"],dn.second,true);
+	if(dn.second.size()>0) fill_vector(shapedata["lo"].set_map()["contents"],dn.second);
+	else                   fill_vector(shapedata["hi"].set_map()["contents"],up.second,true);
+	shapedata["parameter"] << pname;	
       }
+      if(!pname.empty()) np_names.insert(pname);
     }
     
     double poival = xs_pois ? nominal_folding.fiducial[i_truth] : 1.;
     writeParameter(default_parameters, poi, poival);
     writeParameter(background_parameters, poi, 0);
     writeParameter(default_parameters, poi_nom, poival, true);
-    writeDomain(default_axes, poi, 0, fabs(10*poival));    
+    writeDomain(poi_axes, poi, 0, fabs(10*poival));
+    writeDomain(globs_axes, poi_nom, 0, fabs(10*poival));        
     poi_names.push_back(poi);
     poi_nomnames.push_back(poi_nom);
+  }
+  
+  for(const auto& np: np_names){
+    writeParameter(default_parameters, np, 0.);
+    writeDomain(np_axes, np, -5., 5.);
   }
 
   // create regularization term

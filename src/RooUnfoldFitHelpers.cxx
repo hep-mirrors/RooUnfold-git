@@ -460,7 +460,10 @@ namespace { // interjunction: some additional helpers
 
 namespace RooUnfolding { // section 2: non-trivial helpers
 
-  TH1* get_unfolded_histogram(RooWorkspace* workspace, const TH1* hist_template, const std::string& parameter_template) {
+  TH1* get_unfolded_histogram(RooWorkspace& workspace, const TH1* hist_template, const std::string& parameter_template) {
+    return get_unfolded_histogram(workspace.allVars(), hist_template, parameter_template);
+  }
+  TH1* get_unfolded_histogram(const RooArgList& parameters, const TH1* hist_template, const std::string& parameter_template) {
     TH1* unfolded = (TH1*)hist_template->Clone();
     unfolded->Reset();
     
@@ -481,7 +484,7 @@ namespace RooUnfolding { // section 2: non-trivial helpers
 	param_name << buffer;
       }
       
-      RooRealVar* var = dynamic_cast<RooRealVar*>(workspace->var(param_name.str().c_str()));
+      RooRealVar* var = dynamic_cast<RooRealVar*>(parameters.find(param_name.str().c_str()));
       if (!var) {
 	throw std::runtime_error("failed to retrieve '" + param_name.str() + "'");
       }
