@@ -6,7 +6,7 @@ if(${NO_DEFAULT_ROOUNFOLD})
   return()
 endif()
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 # The project version number.
 project(RooUnfold)
@@ -14,10 +14,10 @@ set(VERSION_MAJOR   3   CACHE STRING "Project major version number.")
 set(VERSION_MINOR   0   CACHE STRING "Project minor version number.")
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR)
 
-set(CMAKE_BUILD_TYPE Debug) 
+set(CMAKE_BUILD_TYPE Debug)
 # set(CMAKE_BUILD_TYPE Release)
 
-find_package( ROOT COMPONENTS Tree  Matrix Hist RIO MathCore Physics RooFitCore RooFit HistFactory Graf Postscript Gpad XMLParser)
+find_package( ROOT COMPONENTS Tree  Matrix Hist RIO MathCore Physics RooFitCore RooFit RooFitJSONInterface HistFactory Graf Postscript Gpad XMLParser)
 
 option (RooUnfoldGenerateCMakeConfig "generate a RooUnfoldConfig.cmake file for dependency tracking with other packages" OFF)
 # See https://cmake.org/cmake/help/latest/policy/CMP0077.html
@@ -41,9 +41,8 @@ execute_process( COMMAND ln -sf ${RooUnfoldHeaders} -t ${CMAKE_CURRENT_BINARY_DI
 
 include(cmake/PlainROOT.cmake)
 
-if(RooUnfoldTests)  
+if(RooUnfoldTests)
   include(cmake/testing.cmake)
 endif()
 
 include(cmake/doxygen.cmake)
-

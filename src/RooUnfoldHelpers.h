@@ -53,15 +53,15 @@ namespace RooUnfolding {
     kBiasSDM,
     kBiasRMS
   };
-  
+
   enum Dimension { X=0, Y=1, Z=2 };
   template<class Hist> struct Variable;
 
   template<class Hist> const char* name(const Hist* hist);
   template<class Hist> Hist* clone(const Hist* hist);
-  template<class Hist> Hist* asimovClone(const Hist* hist, bool correctDensity);    
-  template<class Hist> Hist* asimov1DClone(const Hist* hist, bool correctDensity, TVectorD& val, TVectorD& err);    
-  template<class Hist> const char* title(const Hist* hist);  
+  template<class Hist> Hist* asimovClone(const Hist* hist, bool correctDensity);
+  template<class Hist> Hist* asimov1DClone(const Hist* hist, bool correctDensity, TVectorD& val, TVectorD& err);
+  template<class Hist> const char* title(const Hist* hist);
   template<class Hist> double min(const Hist* hist, RooUnfolding::Dimension d);
   template<class Hist> double max(const Hist* hist, RooUnfolding::Dimension d);
   template<class Hist> int sumW2N(const Hist* hist);
@@ -71,7 +71,7 @@ namespace RooUnfolding {
   template<class Hist> int nBins(const Hist* hist, RooUnfolding::Dimension d, bool overflow=false);
   template<class Hist> int bin(const Hist* h, int i, bool overflow);
   template<class Hist> int bin(const Hist* h, int i, int j, bool overflow);
-  template<class Hist> int bin(const Hist* h, int i, int j, int k, bool overflow);  
+  template<class Hist> int bin(const Hist* h, int i, int j, int k, bool overflow);
   template<class Hist> double binCenter(const Hist*h, int i, RooUnfolding::Dimension d);
   template<class Hist> double binWidth(const Hist*h, int i, RooUnfolding::Dimension d);
   template<class Hist> double binHighEdge(const Hist*h, int i, RooUnfolding::Dimension d);
@@ -81,8 +81,8 @@ namespace RooUnfolding {
   template<class Hist> double binContent (const Hist* h, int i, bool overflow);
   template<class Hist> double binVolume (const Hist* h, int i, bool overflow);
   template<class Hist> double binError(const Hist* h, int i, int j, Bool_t overflow);
-  template<class Hist> double binContent (const Hist* h, int i, int j, Bool_t overflow);  
-  template<class Hist> double binVolume (const Hist* h, int i, int j, Bool_t overflow);  
+  template<class Hist> double binContent (const Hist* h, int i, int j, Bool_t overflow);
+  template<class Hist> double binVolume (const Hist* h, int i, int j, Bool_t overflow);
   template<class Hist> TVectorD h2v  (const Hist* h,bool overflow = false, bool correctDensity=false);
   template<class Hist> TVectorD h2ve  (const Hist* h,bool overflow = false, bool correctDensity=false);
   template<class Hist> void h2v  (const Hist* h, TVectorD& v,bool overflow = false, bool correctDensity=false);
@@ -98,16 +98,17 @@ namespace RooUnfolding {
   template<class Hist3D> int findBin(const Hist3D* h, Double_t x, Double_t y, double_t z);
 
   template<class Hist, class Hist2D> void h2mNorm  (const Hist2D* h, TMatrixD& m, const Hist* norm, bool overflow = false, bool correctDensity=false);
-  template<class Hist, class Hist2D> void h2meNorm  (const Hist2D* h, TMatrixD& m, const Hist* norm, bool overflow = false, bool correctDensity=false);  
-  template<class Hist, class Hist2D> TMatrixD h2mNorm  (const Hist2D* h, const Hist* norm, bool overflow = false, bool correctDensity=false);  
-  template<class Hist, class Hist2D> TMatrixD h2meNorm  (const Hist2D* h, const Hist* norm, bool overflow = false, bool correctDensity=false);  
+  template<class Hist, class Hist2D> void h2meNorm  (const Hist2D* h, TMatrixD& m, const Hist* norm, bool overflow = false, bool correctDensity=false);
+  template<class Hist, class Hist2D> TMatrixD h2mNorm  (const Hist2D* h, const Hist* norm, bool overflow = false, bool correctDensity=false);
+  template<class Hist, class Hist2D> TMatrixD h2meNorm  (const Hist2D* h, const Hist* norm, bool overflow = false, bool correctDensity=false);
 
   template<class Hist2D> void h2m  (const Hist2D* h, TMatrixD& m, bool overflow = false, bool correctDensity=false);
   template<class Hist2D> void h2me  (const Hist2D* h, TMatrixD& m, bool overflow = false, bool correctDensity=false);
-  template<class Hist2D> TMatrixD h2m  (const Hist2D* h, bool overflow = false, bool correctDensity=false);  
-  template<class Hist2D> TMatrixD h2me  (const Hist2D* h, bool overflow = false, bool correctDensity=false);  
+  template<class Hist2D> TMatrixD h2m  (const Hist2D* h, bool overflow = false, bool correctDensity=false);
+  template<class Hist2D> TMatrixD h2me  (const Hist2D* h, bool overflow = false, bool correctDensity=false);
 
   template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const Variable<AnyHist>& x);
+  // Missing for TH1
   template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const std::vector<Variable<AnyHist> >& x);
   template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const std::vector<Variable<AnyHist> >& x, const std::vector<Variable<AnyHist> >& y);
   template<class Hist, class AnyHist>  Hist* createHist(const char* name, const char* title, const Variable<AnyHist>& x, const Variable<AnyHist>& y);
@@ -121,7 +122,7 @@ namespace RooUnfolding {
   template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const char* name, const char* title, const Variable<AnyHist>& x, bool overflow = false);
   template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow = false);
   template<class Hist, class AnyHist>  Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const Variable<AnyHist>& x, bool overflow = false);
-  
+
   void printTable (std::ostream& o, const TVectorD& vTrainTrue, const TVectorD& vTrain, const TVectorD& vMeas, const TVectorD& vReco);
   void printTable (std::ostream& o, int dim, int ntxb, int ntyb,
                    const TVectorD& vTrainTrue, const TVectorD& vTrain, const TVectorD& vTrue,const TVectorD& vMeas, const TVectorD& vReco,
@@ -134,7 +135,7 @@ namespace RooUnfolding {
   void addEmptyBins(TMatrixD& m);
 
   TH1D* getTH1(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, bool overflow=false);
-  TH1D* getTH1(const TVectorD& vec, const char* name, const char* title, bool overflow=false);  
+  TH1D* getTH1(const TVectorD& vec, const char* name, const char* title, bool overflow=false);
   TH2D* getTH2(const TMatrixD& matrix, const char* name, const char* title, bool overflow=false);
 
   void add(TMatrixD& target, const TMatrixD& addition);
@@ -142,7 +143,7 @@ namespace RooUnfolding {
   TMatrixD* squareMatrix (const TMatrixD& matrix, int n = -1);
   void resizeVector (TVectorD& vec, Int_t n);
   void squareMatrix (TMatrixD& matrix, int n = -1);
-  bool sanitize(TMatrixD& mat,double t = 1e-9);  
+  bool sanitize(TMatrixD& mat,double t = 1e-9);
   TMatrixD& ABAT (const TMatrixD& a, const TMatrixD& b, TMatrixD& c);
   TMatrixD& ABAT (const TMatrixD& a, const TVectorD& b, TMatrixD& c);
   template<class Hist> RooUnfolding::Variable<Hist> var(const Hist* h, Dimension d);
@@ -155,7 +156,7 @@ namespace RooUnfolding {
   std::vector<double> bounds(RooRealVar* var);
 
   void assert_compat(const TMatrixD& a, const TMatrixD& b);
-  void assert_compat(const TVectorD& a, const TVectorD& b);  
+  void assert_compat(const TVectorD& a, const TVectorD& b);
 }
 
 #include "RooUnfoldHelpers.tpp"

@@ -13,13 +13,13 @@
 #include "TMath.h"
 #include "THashList.h"
 
-namespace RooUnfolding { 
+namespace RooUnfolding {
   template<class Hist> int dim(const Hist* hist){
     return hist->GetDimension();
   }
   template<class Hist> const char* name(const Hist* hist){
     return hist->GetName();
-  }  
+  }
   template<class Hist> const char* title(const Hist* hist){
     return hist->GetTitle();
   }
@@ -101,7 +101,7 @@ namespace{
     }
     return edges;
   }
-  
+
 }
 
 namespace RooUnfolding {
@@ -116,20 +116,20 @@ namespace RooUnfolding {
   template<class Hist, class AnyHist>
   Hist* createHist(const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, const std::vector<Variable<AnyHist>>& y) {
     assert(x.size()>0);
-    assert(y.size()>0);    
+    assert(y.size()>0);
     // first check if we only have one variable each, in which case this is easy
     if(x.size() == 1 && y.size() == 1){
       return createHist<Hist,AnyHist>(name,title,x[0],y[0]);
     }
     // now comes is the complicated part: we have several variables listed as "x" and "y". since there are no TH4s, we have to make a workaround
     int nx = nBins(x);
-    int ny = nBins(y);    
+    int ny = nBins(y);
     Variable<TH2> x_integrated(nx,0,nx,"x_integrated");
     Variable<TH2> y_integrated(ny,0,ny,"y_integrated");
-    
+
     return static_cast<Hist*>(createHistHelper<TH2>(name, title, {x_integrated, y_integrated}));
   }
-  
+
   template<class Hist2D, class AnyHist>
   Hist2D* createHist(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow) {
     auto hist = createHist<Hist2D, AnyHist>(name, title, x);
@@ -140,7 +140,7 @@ namespace RooUnfolding {
     }
     return hist;
   }
-  
+
   template<class Hist2D, class AnyHist>
   Hist2D* createHist(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow) {
     auto hist = createHist<Hist2D, AnyHist>(m, name, title, x);
@@ -150,8 +150,8 @@ namespace RooUnfolding {
       }
     }
     return hist;
-  }    
-  
+  }
+
   template<class Hist, class AnyHist>
   Hist* createHist(const TVectorD& vec, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow) {
     Hist* hist = createHist<Hist,AnyHist>(name, title, x);
@@ -160,7 +160,7 @@ namespace RooUnfolding {
     }
     return hist;
   }
-  
+
   template<class Hist, class AnyHist>
   Hist* createHist(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<AnyHist>>& x, bool overflow) {
     Hist* hist = createHist<Hist,AnyHist>(vec, name, title, x);
@@ -171,18 +171,21 @@ namespace RooUnfolding {
   }
 
   // Specializations for TH1 as both Hist and AnyHist
+  template TH1* createHist<TH1, TH1>(const char* name, const char* title, const std::vector<Variable<TH1>>& x);
   template TH1* createHist<TH1, TH1>(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<TH1>>& x, bool overflow);
 
   // Specializations for TH2 as both Hist and AnyHist
+  template TH2* createHist<TH2, TH2>(const char* name, const char* title, const std::vector<Variable<TH2>>& x);
+  template TH2* createHist<TH2, TH2>(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
   template TH2* createHist<TH2, TH2>(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
-  
+
   // Specializations for TH1 as Hist and TH2 as AnyHist
   template TH1* createHist<TH1, TH2>(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
 
   // Specializations for TH2 as Hist and TH1 as AnyHist
   template TH2* createHist<TH2, TH1>(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<TH1>>& x, bool overflow);
   template TH2* createHist<TH2, TH1>(const char* name, const char* title, const std::vector<Variable<TH1>>& x, const std::vector<Variable<TH1>>& y);
-  
+
   const TAxis* getAxis(const TH1* h, RooUnfolding::Dimension d){
     if(d==RooUnfolding::X) return h->GetXaxis();
     if(d==RooUnfolding::Y) return h->GetYaxis();
@@ -204,7 +207,7 @@ namespace RooUnfolding {
   }
   template<class Hist> double max(const Hist* hist, RooUnfolding::Dimension d){
     return getAxis(hist,d)->GetXmax();
-  }  
+  }
   template<> int nBins<TH1>(const TH1* hist, bool overflow){
     int d = dim(hist);
     if(d==1){
@@ -226,7 +229,7 @@ namespace RooUnfolding {
     const TAxis* ax = getAxis(hist,d);
     return ax->GetNbins()+2*overflow;
   }
-  template<class Hist> const char* varname(const Hist* /*h*/, Dimension /*d*/){  
+  template<class Hist> const char* varname(const Hist* /*h*/, Dimension /*d*/){
     return "";
   }
   template<class Hist> RooUnfolding::Variable<Hist> var(const Hist* h, Dimension d){
@@ -252,7 +255,7 @@ namespace RooUnfolding {
   }
   template<class Hist> int bin(const Hist* h, int i, int j, int k, Bool_t /*overflow*/){
     return h->GetBin(i,j,k);
-  }  
+  }
 
   // explicit instantiation
   template int bin<TH1>(const TH1* h, Int_t i, Bool_t overflow);
@@ -412,8 +415,8 @@ namespace RooUnfolding {
       }
       v[n] = h->GetBinError(i) * (correctDensity ? binVolume(h,i,overflow) : 1);
       ++n;
-    }  
-  }    
+    }
+  }
   template<class Hist> TVectorD h2v  (const Hist* h, bool overflow, bool correctDensity){
     // Returns Vector of values of bins in an input histogram
     TVectorD v(nBins(h,overflow));
@@ -426,7 +429,7 @@ namespace RooUnfolding {
     h2ve(h,v,overflow,correctDensity);
     return v;
   }
-  
+
   template<class Hist> Hist* clone(const Hist* orighist){
     if(!orighist) return NULL;
 
@@ -437,18 +440,18 @@ namespace RooUnfolding {
     return hist;
   }
   template<> TH2* asimovClone<TH2>(const TH2* orighist, bool correctDensity){
-    TH2* hist = (TH2*)(orighist->Clone());    
+    TH2* hist = (TH2*)(orighist->Clone());
     for(int i=0; i<hist->GetNbinsX()+2; ++i){
       for(int j=0; j<hist->GetNbinsY()+2; ++j){
         int bin = hist->GetBin(i,j);
         double val = hist->GetBinContent(bin);
         double vol = correctDensity ? hist->GetXaxis()->GetBinWidth(i)*hist->GetYaxis()->GetBinWidth(j) : 1.;
-        hist->SetBinError(bin,sqrt(vol*val)/vol);          
+        hist->SetBinError(bin,sqrt(vol*val)/vol);
       }
     }
     return hist;
   }
-  template<> TH3* asimovClone<TH3>(const TH3* orighist, bool correctDensity){  
+  template<> TH3* asimovClone<TH3>(const TH3* orighist, bool correctDensity){
     TH3* hist = (TH3*)(orighist->Clone());
     for(int i=0; i<hist->GetNbinsX()+2; ++i){
       for(int j=0; j<hist->GetNbinsY()+2; ++j){
@@ -468,11 +471,11 @@ namespace RooUnfolding {
     } else if(orighist->InheritsFrom(TH2::Class())){
       return asimovClone<TH2>((TH2*)orighist,correctDensity);
     } else {
-      TH1* hist = (TH1*)(orighist->Clone());      
+      TH1* hist = (TH1*)(orighist->Clone());
       for(int i=0; i<hist->GetNbinsX()+2; ++i){
         double val = hist->GetBinContent(i);
         double vol = correctDensity ? hist->GetXaxis()->GetBinWidth(i) : 1.;
-        hist->SetBinError(i,sqrt(vol*val)/vol);          
+        hist->SetBinError(i,sqrt(vol*val)/vol);
       }
       return hist;
     }
@@ -484,7 +487,7 @@ namespace RooUnfolding {
       return asimovClone<TH2>((TH2*)orighist,correctDensity);
     } else {
       TH1* hist = (TH1*)(orighist->Clone());
-      
+
       Int_t start_i = 1;
       if (val.GetNrows()+2 == hist->GetNbinsX()) start_i = 0;
 
@@ -573,7 +576,7 @@ namespace RooUnfolding {
   }
 
 }
-  
+
 template const char* RooUnfolding::name<TH1>(TH1 const*);
 template const char* RooUnfolding::name<TH2>(TH2 const*);
 template const char* RooUnfolding::name<TH3>(TH3 const*);
@@ -618,7 +621,7 @@ template void RooUnfolding::printTable<TH1>(std::ostream&, TH1 const*, TH1 const
 template bool RooUnfolding::empty<TH1>(const TH1*);
 template bool RooUnfolding::empty<TH2>(const TH2*);
 template bool RooUnfolding::empty<TH3>(const TH3*);
-  
+
 
 namespace RooUnfolding {
   bool hasBinLabels(const TAxis* a){
@@ -627,7 +630,7 @@ namespace RooUnfolding {
     THashList* labels = a->GetLabels();
     return labels && labels->GetSize()>0;
   }
-  
+
 
   bool hasBinLabels(const TH1* h){
     // return true if this histogram has bin labels on any axis
@@ -637,7 +640,7 @@ namespace RooUnfolding {
     if(dim > 2) retval = retval && hasBinLabels(h->GetZaxis());
     return retval;
   }
-  
+
   TH1* unrollHistogram(const TH2* input, bool firstX, bool includeUnderflowOverflow){
     // unroll a two-dimensional histogram, concatenating the slices to a single one-dimensional histogram
     const bool binlabels = hasBinLabels(input);
@@ -656,7 +659,7 @@ namespace RooUnfolding {
 	else       newidx = 1 + i*ny + j;
 	size_t bin = input->GetBin(i+!extra,j+!extra);
 	hist->SetBinContent(newidx,input->GetBinContent(bin));
-	
+
 	TString labelX,labelY;
 	if(i==0 && extra){
 	  labelX = TString::Format("%s<%g",input->GetXaxis()->GetTitle(),input->GetXaxis()->GetBinLowEdge(1));
@@ -667,7 +670,7 @@ namespace RooUnfolding {
 	} else {
 	  labelX = TString::Format("%s=%g",input->GetXaxis()->GetTitle(),input->GetXaxis()->GetBinCenter(i+!extra));
 	}
-	
+
 	if(j==0 && extra){
 	  labelY = TString::Format("%s<%g",input->GetYaxis()->GetTitle(),input->GetYaxis()->GetBinLowEdge(1));
 	} else if(j+1==ny && extra){
@@ -702,7 +705,7 @@ namespace RooUnfolding {
       _bounds = bounds(v);
     }
   }
-  
+
   Bool_t resizeAxis (TAxis* ax, Int_t nx){
     // Resize a histogram axis adding extra bins on the end. Returns true if any change made.
     if (!ax)    return kFALSE;
@@ -821,12 +824,12 @@ namespace RooUnfolding {
     TH1::AddDirectory(oldstat);
     return h;
   }
-  
+
   TH1* convertTH1(const TVectorD& values, const TVectorD& errors, const TH1* hist){
     return RooUnfolding::createHist<TH1>(values,errors,hist->GetName(),hist->GetTitle(),RooUnfolding::vars(hist));
   }
   TH1* convertTH1(const TVectorD& values, const TH1* hist){
     return RooUnfolding::createHist<TH1>(values,hist->GetName(),hist->GetTitle(),RooUnfolding::vars(hist));
   }
-  
+
 }
