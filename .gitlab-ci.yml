@@ -13,7 +13,7 @@ stages:
 
 .latex: &latex
   stage: doc
-  image: blang/latex:ubuntu
+  image: registry.cern.ch/docker.io/blang/latex:ubuntu
 
 .standalone: &standalone    
   image: registry.cern.ch/docker.io/rootproject/root:6.32.02-ubuntu24.04
