@@ -807,7 +807,7 @@ std::vector<std::vector<double>> getBinCenters(const RooArgList& vars) {
     }
   }  
   std::vector<double> v2v(const TVectorD& v){
-    return std::vector<double>(v.data(),v.data()+v.GetNrows());
+    return std::vector<double>(v.GetMatrixArray(),v.GetMatrixArray()+v.GetNrows());
   }  
 }
 
