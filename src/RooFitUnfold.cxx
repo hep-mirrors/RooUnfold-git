@@ -1011,6 +1011,10 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   auto& samples = signalregion["samples"].set_seq();
 
   // add the background sample
+  std::unordered_set<std::string> background_systematics;
+  if(include_sys){
+    expand_key_set(background_systematics,_bkg._shapes);
+  }  
   if(_bkg._nom){
     auto& background = samples.append_child().set_map();
     background["name"] << "background";
@@ -1023,7 +1027,8 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     writeDomain(np_axes, "bkg_norm", 0, 50.);
     auto nom = v2v(h2v(_bkg._nom,false,_useDensity));
     double sum_nom = std::accumulate(nom.begin(), nom.end(), 0.0);    
-    for(const auto& shape: _bkg._shapes){
+    for(const auto& k: background_systematics){
+      const auto& shape = *_bkg._shapes.find(k);
       if(!shape.second.size() == 2){
 	throw std::runtime_error("cannot deal with bkg systematics that are not up/down");
       } 
@@ -1110,15 +1115,15 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   
   auto nominal_folding = calculate_folding(_truth._nom,_res._nom,_reco._nom);
 
-  std::unordered_set<std::string> systematics;
+  std::unordered_set<std::string> signal_systematics;
   if(include_sys){
-    expand_key_set(systematics,_truth._shapes);
-    expand_key_set(systematics,_res._shapes);
-    expand_key_set(systematics,_reco._shapes);
+    expand_key_set(signal_systematics,_truth._shapes);
+    expand_key_set(signal_systematics,_res._shapes);
+    expand_key_set(signal_systematics,_reco._shapes);
   }
   std::map<std::string,Folding> up_systematics;
   std::map<std::string,Folding> dn_systematics;  
-  for(const auto& k:systematics){
+  for(const auto& k:signal_systematics){
     auto* truth_up = _truth._nom;
     auto*  reco_up = _reco._nom;
     auto*   res_up = _res._nom;
@@ -1169,7 +1174,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     pois.append_child() << poi;
     xs["name"] << poi;
     xs["type"] << "normfactor";
-    for(const auto& k:systematics){
+    for(const auto& k:signal_systematics){
       auto up = factorize_sys(nominal_folding.response[i_truth],up_systematics[k].response[i_truth],sanitize_sys);
       auto dn = factorize_sys(nominal_folding.response[i_truth],dn_systematics[k].response[i_truth],sanitize_sys);
       std::string pname;
