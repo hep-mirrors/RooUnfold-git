@@ -876,18 +876,19 @@ namespace {
       component_ratios.push_back(sanitize ? sanitize_ratio(ratio,bineff) : ratio);
     }
     clearIfCloseToOne(component_ratios,1e-6);
+    std::vector<double> components;    
     return { total_ratio, component_ratios };
   }
-  void fill_vector(RooFit::Detail::JSONNode& node, const TVectorD& v){
+  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v){
     node.set_seq();
-    for(size_t i=0; i<v.GetNrows(); ++i){
+    for(size_t i=0; i<v.size(); ++i){
       node.append_child() << v[i];
     }
   }
-  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v, bool flip = false){
+  void fill_vector_product(RooFit::Detail::JSONNode& node, const std::vector<double>& v, const std::vector<double>& w, bool flip = false){
     node.set_seq();
     for(size_t i=0; i<v.size(); ++i){
-      node.append_child() << (flip ? 2.-v[i] : v[i]);
+      node.append_child() << (flip ? w[i] * (2.-v[i]) : w[i]*v[i]);
     }
   }
 }
@@ -928,7 +929,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
   };
   auto writeHistogram = [&](auto& h, JSONNode& node){
     node.set_map();
-    fill_vector(node["contents"],h2v(h,false,_useDensity));
+    fill_vector(node["contents"],v2v(h2v(h,false,_useDensity)));
   };  
   auto writeAxes = [&](JSONNode& axes){
     for(auto& obs:this->_obs_reco){
@@ -1025,45 +1026,36 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     bkg_nf["name"] << "bkg_norm";
     writeParameter(default_parameters, "bkg_norm", 1., true);
     writeDomain(np_axes, "bkg_norm", 0, 50.);
-    auto nom = v2v(h2v(_bkg._nom,false,_useDensity));
-    double sum_nom = std::accumulate(nom.begin(), nom.end(), 0.0);    
+    auto nominal = v2v(h2v(_bkg._nom,false,_useDensity));
+    double sum_nom = std::accumulate(nominal.begin(), nominal.end(), 0.0);    
     for(const auto& k: background_systematics){
       const auto& shape = *_bkg._shapes.find(k);
       if(!shape.second.size() == 2){
 	throw std::runtime_error("cannot deal with bkg systematics that are not up/down");
       } 
-      auto up = v2v(h2v(shape.second[0],false,_useDensity));
-      auto dn = v2v(h2v(shape.second[1],false,_useDensity));
-      double sum_up = std::accumulate(up.begin(), up.end(), 0.0);
-      double sum_dn = std::accumulate(dn.begin(), dn.end(), 0.0);
-      std::vector<double> up_rel, dn_rel;
-      for(size_t i=0; i<nom.size(); ++i){
-	up_rel.push_back((up[i]/sum_up*sum_nom)/nom[i]);
-	dn_rel.push_back((dn[i]/sum_dn*sum_nom)/nom[i]);
-      }
-      clearIfCloseToOne(up_rel,1e-6);
-      clearIfCloseToOne(dn_rel,1e-6);
+      auto up = factorize_sys(v2v(h2v(shape.second[0],false,_useDensity)),nominal,sanitize);
+      auto dn = factorize_sys(v2v(h2v(shape.second[1],false,_useDensity)),nominal,sanitize);      
       std::string pname;
-      if(!isCloseToOne(sum_up/sum_nom,1e-6) || !isCloseToOne(sum_dn/sum_nom,1e-6)){
+      if(!isCloseToOne(up.first,1e-6) || !isCloseToOne(dn.first,1e-6)){
 	auto& normsys = modifiers.append_child().set_map();
 	normsys["name"] << shape.first;
 	normsys["type"] << "normsys";
 	pname = "alpha_"+shape.first;
 	auto& normdata = normsys["data"].set_map();
-	normdata["hi"] << sum_up/sum_nom;
-	normdata["lo"] << sum_dn/sum_nom;
+	normdata["hi"] << up.first;
+	normdata["lo"] << dn.first;
 	normdata["parameter"] << pname;	
       }
-      if(up_rel.size()>0 || dn_rel.size()>0){
+      if(up.second.size()>0 || dn.second.size()>0){
 	auto& shapesys = modifiers.append_child().set_map();
 	shapesys["name"] << shape.first;
 	shapesys["type"] << "histosys";
 	pname = "alpha_"+shape.first;	
 	auto& shapedata = shapesys["data"].set_map();
-	if(up_rel.size()>0) fill_vector(shapedata["hi"].set_map()["contents"],up_rel);
-	else                fill_vector(shapedata["hi"].set_map()["contents"],dn_rel,true);
-	if(dn_rel.size()>0) fill_vector(shapedata["lo"].set_map()["contents"],dn_rel);
-	else                fill_vector(shapedata["hi"].set_map()["contents"],up_rel,true);
+	if(up.second.size()>0) fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal);
+	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],dn.second,nominal,true);
+	if(dn.second.size()>0) fill_vector_product(shapedata["lo"].set_map()["contents"],dn.second,nominal);
+	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal,true);
 	shapedata["parameter"] << pname;	
       }
     }
@@ -1163,7 +1155,8 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     signal["name"] << "signal_"+truth_cat;
 
     auto& data = signal["data"].set_map();
-    fill_vector(data["contents"],nominal_folding.response[i_truth]);
+    const auto& nominal = nominal_folding.response[i_truth];
+    fill_vector(data["contents"],nominal);
     
     std::string poi = (xs_pois ? "xs_" : "mu_" ) + truth_cat;
     std::string poi_nom = "nom_"+poi;
@@ -1175,8 +1168,8 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
     xs["name"] << poi;
     xs["type"] << "normfactor";
     for(const auto& k:signal_systematics){
-      auto up = factorize_sys(nominal_folding.response[i_truth],up_systematics[k].response[i_truth],sanitize_sys);
-      auto dn = factorize_sys(nominal_folding.response[i_truth],dn_systematics[k].response[i_truth],sanitize_sys);
+      auto up = factorize_sys(nominal,up_systematics[k].response[i_truth],sanitize_sys);
+      auto dn = factorize_sys(nominal,dn_systematics[k].response[i_truth],sanitize_sys);
       std::string pname;
       if(!isCloseToOne(up.first,1e-6) || !isCloseToOne(dn.first,1e-6)){
 	auto& normsys = modifiers.append_child().set_map();
@@ -1194,10 +1187,10 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
 	shapesys["type"] << "histosys";
 	pname = "alpha_"+k;
 	auto& shapedata = shapesys["data"].set_map();
-	if(up.second.size()>0) fill_vector(shapedata["hi"].set_map()["contents"],up.second);
-	else                   fill_vector(shapedata["hi"].set_map()["contents"],dn.second,true);
-	if(dn.second.size()>0) fill_vector(shapedata["lo"].set_map()["contents"],dn.second);
-	else                   fill_vector(shapedata["hi"].set_map()["contents"],up.second,true);
+	if(up.second.size()>0) fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal);
+	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],dn.second,nominal,true);
+	if(dn.second.size()>0) fill_vector_product(shapedata["lo"].set_map()["contents"],dn.second,nominal);
+	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal,true);
 	shapedata["parameter"] << pname;	
       }
       if(!pname.empty()) np_names.insert(pname);
@@ -1544,14 +1537,14 @@ void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, const T
   this->lockCheck();
   // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore  
   switch(c){
-  case kTruth:
+  case kSignalTruth:
     this->checkConsistency(this->_truth,up);
     this->checkConsistency(this->_truth,down);
     this->_truth.addShape(name,
                           RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_up",up->GetName(),name),up,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity),
                           RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_dn",down->GetName(),name),down,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
-  case kMeasured:
+  case kSignalMeasured:
     this->checkConsistency(this->_reco,up);
     this->checkConsistency(this->_reco,down);
     this->_reco.addShape(name,
@@ -1565,14 +1558,14 @@ void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, const T
                          RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
                          RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
-  case kResponse:
+  case kSignalResponse:
     this->checkConsistency(this->_res,up);
     this->checkConsistency(this->_res,down);
     this->_res.addShape(name,
                         RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_up",up->GetName(),name),up,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity),
                         RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_dn",down->GetName(),name),down,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity));
     break;
-  case kBackground:
+  case kBackgroundMeasured:
     this->checkConsistency(this->_bkg,up);
     this->checkConsistency(this->_bkg,down);
     this->_bkg.addShape(name,
@@ -1586,19 +1579,19 @@ void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, double 
   //! register a new normalization systematic
   this->lockCheck();
   switch(c){
-  case kTruth:
+  case kSignalTruth:
     this->_truth.addNorm(name,up,down);
     break;
-  case kMeasured:
+  case kSignalMeasured:
     this->_reco.addNorm(name,up,down);
     break;
   case kData:
     this->_data.addNorm(name,up,down);
     break;
-  case kResponse:
+  case kSignalResponse:
     this->_res.addNorm(name,up,down);
     break;
-  case kBackground:
+  case kBackgroundMeasured:
     this->_bkg.addNorm(name,up,down);
     break;
   }

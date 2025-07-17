@@ -17,11 +17,12 @@ class THStack;
 class RooUnfoldSpec : public TNamed {
 public:
   enum Contribution {
-                     kBackground,
+                     kBackgroundTruth,    
+                     kBackgroundMeasured,
                      kData,
-                     kResponse,
-                     kTruth,
-                     kMeasured
+                     kSignalResponse,
+                     kSignalTruth,
+                     kSignalMeasured
   };
   typedef std::vector<RooAbsReal*> ShapeSys;
   typedef std::vector<double> NormSys;
