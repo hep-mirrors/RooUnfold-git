@@ -13,10 +13,10 @@ stages:
 
 .latex: &latex
   stage: doc
-  image: blang/latex:ubuntu
+  image: registry.cern.ch/docker.io/blang/latex:ubuntu
 
 .standalone: &standalone    
-  image: rootproject/root:6.32.02-ubuntu24.04
+  image: registry.cern.ch/docker.io/rootproject/root:6.32.02-ubuntu24.04
   before_script:
     - apt-get update
     - apt-get -y install python-is-python3 libvdt0.4
