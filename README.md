@@ -30,7 +30,7 @@ refer to this web page and/or the paper:
 
 There is extensive documentation available online:
   - the [User Guide](https://gitlab.cern.ch/RooUnfold/documentation/-/blob/master/RooUnfold_user_guide.pdf).
-  - the [RooUnfold tutorial](http://statisticalmethods.web.cern.ch/StatisticalMethods/unfolding/RooUnfold_01-Methods/) 
+  - the [RooUnfold tutorial](http://statisticalmethods.web.cern.ch/StatisticalMethods/unfolding/RooUnfold_01-Methods/)
   - auto-generated [Doxygen class documentation](http://roounfold.web.cern.ch/hierarchy.html) for the RooUnfold package
   - RooUnfold package [README](README.md)
   - RooUnfold package [release notes](History.md)
@@ -48,11 +48,13 @@ Building the Library
 
 RooUnfold uses [ROOT](https://root.cern.ch/). The ROOT web site has [instructions](https://root.cern/install/)
 for installing ROOT on different systems in various ways.
-In particular, ROOT is already installed on [CERN lxplus](https://lxplusdoc.web.cern.ch/). Alternatively, if you have [CVMFS](https://cernvm.cern.ch/fs/), it is available using, eg. for CentOS7:
+In particular, ROOT is already installed on [CERN
+lxplus](https://lxplusdoc.web.cern.ch/). Alternatively, if you have
+[CVMFS](https://cernvm.cern.ch/fs/), it is available using, eg. for
+EL9 (Redhat, Alma, Rocky, etc.):
 ```
-source /cvmfs/sft.cern.ch/lcg/views/LCG_100/x86_64-centos7-gcc10-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106a/x86_64-el9-gcc14-opt/setup.sh
 ```
-
 Check out RooUnfold
 
     git clone ssh://git@gitlab.cern.ch:7999/RooUnfold/RooUnfold.git
@@ -66,6 +68,19 @@ Build with `cmake`, using
     make -j4
     cd ..
     source build/setup.sh
+
+Or using [conda](https://root.cern/install/#conda) after activating
+a conda environment and checking out RooUnfold:
+```
+conda install root cmake
+```
+
+Build with `cmake`, using
+
+    mkdir build-conda
+    cd build-conda
+    cmake -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} -DCMAKE_TOOLCHAIN_FILE=../cmake/conda-toolchain.cmake ..
+    make -j4 install
 
 For backwards compatibility, we also maintain a GNU `Makefile`.
 
@@ -82,7 +97,6 @@ Many versions of RooUnfold are tagged, you can access them after with
 `git checkout X.Y.Z` after cloning the repository.  The following list
 contains some of the major milestone versions.
 
-  - 3.0.0: Inclusion of RooFit, transition to RooFitUnfold. 
+  - 3.0.0: Inclusion of RooFit, transition to RooFitUnfold.
   - 2.0.0: General interface improvements
   - 1.1.1: Legacy port from SVN repository
-  
