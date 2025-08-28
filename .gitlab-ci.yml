@@ -4,6 +4,7 @@
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  TARGET_BRANCH: master
 
 stages:
   - check
