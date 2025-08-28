@@ -22,9 +22,7 @@ from itertools import islice
 from shutil import which
 
 COPYRIGHT_SIGNATURE = re.compile(r"\bcopyright\b", re.IGNORECASE)
-CHECKED_FILES = re.compile(
-    r".*(\.(i?[ch](pp|xx|c)?|cc|hh|py))"
-)
+CHECKED_FILES = re.compile(r".*(\.(i?[ch](pp|xx|c)?|cc|hh|py))")
 
 # see https://www.python.org/dev/peps/pep-0263 for the regex
 ENCODING_DECLARATION = re.compile(rb"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)")
@@ -72,12 +70,7 @@ def get_files(reference=None):
     from subprocess import check_output
 
     if reference is None:
-        all = (
-            path.decode()
-            for path in check_output(["git", "ls-files", "-z"])
-            .rstrip(b"\x00")
-            .split(b"\x00")
-        )
+        all = (path.decode() for path in check_output(["git", "ls-files", "-z"]).rstrip(b"\x00").split(b"\x00"))
     else:
         prefix_len = len(check_output(["git", "rev-parse", "--show-prefix"]).strip())
         all = (
@@ -106,9 +99,7 @@ def lang_family(path):
     """
     if re.match(r".*\.(xml|xsd|dtd|html?|qm[ts]|ent)$", path):
         return "xml"
-    if re.match(
-        r"(.*\.(i?[ch](pp|xx|c)?|cuh?|cc|hh|C|opts|js|jsx|css)|" r"Jenkinsfile)$", path
-    ):
+    if re.match(r"(.*\.(i?[ch](pp|xx|c)?|cuh?|cc|hh|C|opts|js|jsx|css)|" r"Jenkinsfile)$", path):
         return "c"
     if re.match(r".*\.py$", path) or re.match(r"^#!.*python", open(path).readline(120)):
         return "py"
@@ -124,7 +115,6 @@ def find_encoding_declaration_line(lines, limit=2):
         if ENCODING_DECLARATION.match(l):
             return i
     return None
-
 
 
 def call_formatter(cmd, input):
@@ -147,9 +137,7 @@ def get_git_root(path):
 
     if not os.path.isdir(path):
         path = os.path.dirname(path)
-    p = Popen(
-        ["git", "rev-parse", "--show-toplevel"], cwd=path, stdout=PIPE, stderr=PIPE
-    )
+    p = Popen(["git", "rev-parse", "--show-toplevel"], cwd=path, stdout=PIPE, stderr=PIPE)
     out, _ = p.communicate()
     if p.returncode == 0:
         return out.strip()
@@ -206,6 +194,7 @@ class CommandNotFound(RuntimeError):
 
 def get_clang_format_cmd(version=CLANG_FORMAT_VERSION):
     from subprocess import check_output
+
     cmd = find_command(
         cmd.format(version)
         for cmd in [
@@ -213,7 +202,7 @@ def get_clang_format_cmd(version=CLANG_FORMAT_VERSION):
             "clang-format",
         ]
     )
-    if cmd == 'clang-format':
+    if cmd == "clang-format":
         found_version = check_output([cmd, "--version"]).split()[-1].decode()
         if found_version != version:
             msg = f"wrong clang-format version {found_version} ({version} required)"
@@ -249,9 +238,7 @@ class Formatter:
         'lang'.
         """
         if lang == "c":
-            assert self.clang_format_cmd, (
-                "tried to format C/C++ file but clang-format is not available"
-            )
+            assert self.clang_format_cmd, "tried to format C/C++ file but clang-format is not available"
             ensure_clang_format_style(path)
             return [
                 self.clang_format_cmd,
@@ -260,9 +247,7 @@ class Formatter:
                 "-assume-filename=" + path,
             ]
         if lang == "py":
-            assert self.ruff_cmd, (
-                "tried to format Python file but ruff is not available"
-            )
+            assert self.ruff_cmd, "tried to format Python file but ruff is not available"
             return [self.ruff_cmd, "format", "-"]
         msg = f"invalid language {lang!r}"
         raise AssertionError(msg)
@@ -343,9 +328,7 @@ def format_code():
         "--clang-format-version",
         help="version of clang-format to use (default: %(default)s)",
     )
-    parser.add_argument(
-        "--ruff-version", help="version of ruff to use (default: %(default)s)"
-    )
+    parser.add_argument("--ruff-version", help="version of ruff to use (default: %(default)s)")
     parser.add_argument(
         "--verbose",
         action="store_const",
@@ -360,13 +343,10 @@ def format_code():
         dest="log_level",
         help="print debug messages",
     )
-    parser.add_argument(
-        "-n", "--dry-run", action="store_true", help="do not modify the files"
-    )
+    parser.add_argument("-n", "--dry-run", action="store_true", help="do not modify the files")
     parser.add_argument(
         "--reference",
-        help="check/format only the files select the files that have changed "
-        "since the REFERENCE commit/branch",
+        help="check/format only the files select the files that have changed since the REFERENCE commit/branch",
     )
     parser.add_argument(
         "--format-patch",
@@ -404,10 +384,7 @@ def format_code():
 
     if args.format_patch:
         if len(args.files) > 1:
-            parser.error(
-                "wrong number of arguments: at most one argument "
-                "must be provided when using --format-patch"
-            )
+            parser.error("wrong number of arguments: at most one argument must be provided when using --format-patch")
         elif args.files:
             args.reference = args.files.pop()
 
@@ -421,17 +398,13 @@ def format_code():
         clang_format_cmd = get_clang_format_cmd(args.clang_format_version)
         info("using clang-format: %s", clang_format_cmd)
     except CommandNotFound as err:
-        (parser.error if args.pipe == "c" else warning)(
-            f"{err}: C/C++ formatting not available"
-        )
+        (parser.error if args.pipe == "c" else warning)(f"{err}: C/C++ formatting not available")
 
     try:
         ruff_cmd = get_ruff_cmd(args.ruff_version)
         info("using ruff: %s", ruff_cmd)
     except CommandNotFound as err:
-        (parser.error if args.pipe == "py" else warning)(
-            f"{err}: Python formatting not available"
-        )
+        (parser.error if args.pipe == "py" else warning)(f"{err}: Python formatting not available")
 
     def can_format(path):
         if to_check(path):
@@ -465,9 +438,7 @@ def format_code():
                 output = b"" if is_empty(path) else formatter(input, path, lang)
                 if args.format_patch:
                     patch.extend(
-                        l
-                        if l.endswith("\n")
-                        else (l + "\n\\ No newline at end of file\n")
+                        l if l.endswith("\n") else (l + "\n\\ No newline at end of file\n")
                         for l in unified_diff(
                             input.decode("utf-8").splitlines(True),
                             output.decode("utf-8").splitlines(True),
@@ -533,9 +504,7 @@ def format_code():
         if args.format_patch == "-":
             print(msg)
         else:
-            if os.path.dirname(args.format_patch) and not os.path.isdir(
-                os.path.dirname(args.format_patch)
-            ):
+            if os.path.dirname(args.format_patch) and not os.path.isdir(os.path.dirname(args.format_patch)):
                 os.makedirs(os.path.dirname(args.format_patch))
             with open(args.format_patch, "wb") as patchfile:
                 patchfile.write(bytes(msg))
@@ -547,9 +516,9 @@ def format_code():
             )
             if "CI" in os.environ:
                 print(
-                    "   curl {CI_PROJECT_URL}/-/jobs/{CI_JOB_ID}/"
-                    "artifacts/raw/{0} | "
-                    "git am".format(args.format_patch, **os.environ)
+                    "   curl {CI_PROJECT_URL}/-/jobs/{CI_JOB_ID}/artifacts/raw/{0} | git am".format(
+                        args.format_patch, **os.environ
+                    )
                 )
             else:
                 print(f"   git am {args.format_patch}")
