@@ -71,7 +71,7 @@ check_formatting:
   stage: check
   tags:
     - cvmfs
-  image: registry.cern.ch/docker.io/almalinux:9
+  image: gitlab-registry.cern.ch/lhcb-docker/os-base/alma9-devel:latest
   script:
     - . /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-clang19-opt
     - python3 format-source --format-patch apply-formatting.patch origin/${TARGET_BRANCH}
