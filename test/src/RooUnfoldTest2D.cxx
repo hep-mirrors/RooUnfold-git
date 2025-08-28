@@ -14,21 +14,22 @@
 
 #include "RooUnfoldTestHarness2D.h"
 
-RooUnfoldTestHarness2D* test2d= 0;
+RooUnfoldTestHarness2D *test2d = 0;
 
 //==============================================================================
 // Routine to run with parameters specified as a string
 //==============================================================================
 
-void RooUnfoldTest2D (const char* args= "")
+void RooUnfoldTest2D(const char *args = "")
 {
-// If run interactively, remove canvas and all histograms that might have been
-// created with a previous invocation.
-  delete test2d; test2d= 0;
-  gDirectory->Clear();
+   // If run interactively, remove canvas and all histograms that might have been
+   // created with a previous invocation.
+   delete test2d;
+   test2d = 0;
+   gDirectory->Clear();
 
-  test2d= new RooUnfoldTestHarness2D ("RooUnfoldTest2D", args);
-  test2d->Run();
+   test2d = new RooUnfoldTestHarness2D("RooUnfoldTest2D", args);
+   test2d->Run();
 }
 
 #ifndef __CINT__
@@ -37,9 +38,10 @@ void RooUnfoldTest2D (const char* args= "")
 // Main program when run stand-alone
 //==============================================================================
 
-int main (int argc, char** argv) {
-  RooUnfoldTestHarness2D maintest2d ("RooUnfoldTest2D", argc, argv);
-  return maintest2d.Run();
+int main(int argc, char **argv)
+{
+   RooUnfoldTestHarness2D maintest2d("RooUnfoldTest2D", argc, argv);
+   return maintest2d.Run();
 }
 
 #endif
