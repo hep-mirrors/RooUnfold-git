@@ -20,6 +20,7 @@ import re
 from datetime import date
 from itertools import islice
 from shutil import which
+from pathlib import PurePath
 
 COPYRIGHT_SIGNATURE = re.compile(r"\bcopyright\b", re.IGNORECASE)
 CHECKED_FILES = re.compile(r".*(\.(i?[ch](pp|xx|c)?|cc|hh|py))")
@@ -44,11 +45,11 @@ def to_check(path):
     """
     Check if path is meant to contain a copyright statement.
     """
-    skip_dirs = ("src/RooUnfold/TUnfold",)
+    skip_patterns = ("T*Unfold*",)
     return (
         os.path.isfile(path)
         and (bool(CHECKED_FILES.match(path)) or is_script(path))
-        and not any(path.startswith(d) for d in skip_dirs)
+        and not any(PurePath(path).match(pat) for pat in skip_patterns)
     )
 
 
@@ -435,6 +436,7 @@ def format_code():
     encoding_errors = []
     formatter = Formatter(clang_format_cmd, ruff_cmd)
     for path in (f for f in args.files if to_check(f)):
+        print(f"formatting {path}")
         lang = can_format(path)
         if lang:
             try:
