@@ -6,4 +6,4 @@ settings.json
 # python
 *.egg-info
 __pycache__
-src/RooUnfold
+src/RooUnfold/TUnfold
