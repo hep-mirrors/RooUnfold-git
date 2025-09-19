@@ -6,7 +6,7 @@ if(${NO_DEFAULT_ROOUNFOLD})
   return()
 endif()
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.18...4.1)
 
 # The project version number.
 project(RooUnfold)
