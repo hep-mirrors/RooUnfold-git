@@ -1,3 +1,30 @@
+/*===========================================================================*/
+/*
+ * BEGIN ROOUNFOLD COPYRIGHT
+ * RooUnfold — Unfolding library for particle-physics inverse problems
+ *
+ * Copyright © 2007–2025 CERN and the authors’ respective research institutions
+ * Authors (by git history of this file):
+ *   - Tim Adye (2007–2012, 2022)
+ *   - Richard Claridge (2010)
+ *   - Carsten Burgard (2019–2020, 2022, 2024)
+ *   - Pim Verschuuren (2019–2021)
+ *   - David Hutchcroft (2021)
+ *   - Vincent Croft (2021)
+ *   - Lydia Brenner (2023)
+ *   - Roel Aaij (2025)
+ *
+ * Note: Authorship is inferred from Git history. Copyright is held by CERN and by the
+ * respective research institutions employing the authors at the time of contribution.
+ *
+ * License: BSD-3-Clause
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * This file header was generated automatically from repository history.
+ * END ROOUNFOLD COPYRIGHT
+ */
+/*===========================================================================*/
+
 /*! \class RooUnfoldBayesT
 Links to the RooUnfoldBayesImpl class which uses Bayesian unfolding to reconstruct the truth distribution.
 Works for 2 and 3 dimensional distributions

@@ -1,3 +1,25 @@
+/*===========================================================================*/
+/*
+ * BEGIN ROOUNFOLD COPYRIGHT
+ * RooUnfold — Unfolding library for particle-physics inverse problems
+ *
+ * Copyright © 2007–2025 CERN and the authors’ respective research institutions
+ * Authors (by git history of this file):
+ *   - Tim Adye (2007, 2009–2011, 2014, 2017)
+ *   - Carsten Burgard (2019–2020)
+ *   - Roel Aaij (2025)
+ *
+ * Note: Authorship is inferred from Git history. Copyright is held by CERN and by the
+ * respective research institutions employing the authors at the time of contribution.
+ *
+ * License: BSD-3-Clause
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * This file header was generated automatically from repository history.
+ * END ROOUNFOLD COPYRIGHT
+ */
+/*===========================================================================*/
+
 //=====================================================================-*-C++-*-
 // File and Version Information:
 //      $Id$
