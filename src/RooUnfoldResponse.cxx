@@ -1118,10 +1118,10 @@ RooUnfoldResponse &RooUnfoldResponse::Setup(const TH1 *measured, const TH1 *trut
       _overflow = 0;
    }
 
-   double mlow = measured->GetXaxis()->GetXmin();
-   double mhigh = measured->GetXaxis()->GetXmax();
-   double tlow = truth->GetXaxis()->GetXmin();
-   double thigh = truth->GetXaxis()->GetXmax();
+   double mlow = _mes->GetXaxis()->GetXmin();
+   double mhigh = _mes->GetXaxis()->GetXmax();
+   double tlow = _tru->GetXaxis()->GetXmin();
+   double thigh = _tru->GetXaxis()->GetXmax();
 
    _fak = createHist<TH1>("fakes", "Fakes", Variable<TH1>(nBins(response, RooUnfolding::X), mlow, mhigh, "xm"));
 
