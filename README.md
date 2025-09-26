@@ -46,6 +46,9 @@ Tim Adye, in Proceedings of the PHYSTAT 2011 Workshop on
 Building the Library
 ---
 
+From source using CVMFS
+----
+
 RooUnfold uses [ROOT](https://root.cern.ch/). The ROOT web site has [instructions](https://root.cern/install/)
 for installing ROOT on different systems in various ways.
 In particular, ROOT is already installed on [CERN
@@ -69,6 +72,10 @@ Build with `cmake`, using
     cd ..
     source build/setup.sh
 
+
+From source in a Conda environment
+----
+
 Or using [conda](https://root.cern/install/#conda) after activating
 a conda environment and checking out RooUnfold:
 ```
@@ -83,6 +90,21 @@ Build with `cmake`, using
     make -j4 install
 
 For backwards compatibility, we also maintain a GNU `Makefile`.
+
+From source with Pixi
+----
+
+With [Pixi](https://pixi.sh/latest/installation/) installed run
+
+```
+pixi install
+```
+
+or
+
+```
+pixi shell
+```
 
 Usage
 ---
