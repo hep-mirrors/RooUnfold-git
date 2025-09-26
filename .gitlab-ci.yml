@@ -64,6 +64,13 @@ stages:
       - libRooUnfold.rootmap
       - RooUnfold/*.py
 
+.pixi: &pixi
+  stage: build
+  script:
+    - curl -fsSL https://pixi.sh/install.sh | sh
+    - . $HOME/.bashrc
+    - pixi install
+
 
 ############################################
 ## formatting
@@ -94,6 +101,8 @@ compile_GNUmake:
   <<: *standalone
   <<: *GNUmake
 
+compile_pixi:
+  <<: *pixi
 
 
 ############################################

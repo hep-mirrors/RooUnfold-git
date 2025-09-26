@@ -7,3 +7,7 @@ settings.json
 *.egg-info
 __pycache__
 src/RooUnfold/TUnfold
+_skbuild/*
+# pixi environments
+.pixi/*
+!.pixi/config.toml
