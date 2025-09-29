@@ -5,8 +5,8 @@
  *
  * Copyright © 2007–2025 CERN and the authors’ respective research institutions
  * Authors (by git history of this file):
- *   - Tim Adye (2007–2011)
- *   - Fergus Wilson (2008)
+ *   - Tim Adye (2005–2011)
+ *   - Fergus Wilson (2005-2006, 2008)
  *   - Vincent Croft (2021)
  *   - Roel Aaij (2025)
  *

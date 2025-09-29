@@ -5,7 +5,8 @@
  *
  * Copyright © 2007–2025 CERN and the authors’ respective research institutions
  * Authors (by git history of this file):
- *   - Tim Adye (2007, 2009–2011, 2014, 2017)
+ *   - Tim Adye (2005-2007, 2009–2011, 2014, 2017)
+ *   - Fergus Wilson (2005-2006)
  *   - Carsten Burgard (2019–2020)
  *   - Roel Aaij (2025)
  *

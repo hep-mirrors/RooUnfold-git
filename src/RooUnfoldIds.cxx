@@ -5,10 +5,11 @@
  *
  * Copyright © 2017–2025 CERN and the authors’ respective research institutions
  * Authors (by git history of this file):
+ *   - Bogdan Malaescu (2017)
+ *   - Chris Meyer (2017, 2020)
  *   - Tim Adye (2017, 2022)
  *   - Carsten Burgard (2019, 2022)
  *   - Pim Verschuuren (2019–2021)
- *   - Chris Meyer (2020)
  *   - David Hutchcroft (2021)
  *   - Vincent Croft (2021)
  *   - Roel Aaij (2025)
