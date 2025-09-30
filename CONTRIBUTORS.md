@@ -1,0 +1,359 @@
+# Contributors
+
+Total: **17**
+
+_Sorted by involvement span (earliest↔latest), then by number of files._
+
+- **Tim Adye**
+  - Years: 2005–2014, 2017–2018, 2022, 2024  *(span 2005–2024, 20 years)*
+  - Files (50):
+    - `src/RooFitUnfold.cxx`
+    - `src/RooFitUnfold.h`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldBinByBin.h`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldErrors.h`
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldFitHelpers.h`
+    - `src/RooUnfoldGP.cxx`
+    - `src/RooUnfoldGP.h`
+    - `src/RooUnfoldHelpers.cxx`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldInvert.h`
+    - `src/RooUnfoldParms.cxx`
+    - `src/RooUnfoldParms.h`
+    - `src/RooUnfoldPoisson.cxx`
+    - `src/RooUnfoldPoisson.h`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldResponse.h`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTH1Helpers.cxx`
+    - `src/RooUnfoldTH1Helpers.h`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+    - `src/RooUnfold_LinkDef.h`
+    - `test/src/ArgVar.h`
+    - `test/src/ArgVars.cxx`
+    - `test/src/ArgVars.h`
+    - `test/src/RooUnfoldTest.cxx`
+    - `test/src/RooUnfoldTest2D.cxx`
+    - `test/src/RooUnfoldTest3D.cxx`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestHarness.h`
+    - `test/src/RooUnfoldTestHarness2D.cxx`
+    - `test/src/RooUnfoldTestHarness2D.h`
+    - `test/src/RooUnfoldTestHarness3D.cxx`
+    - `test/src/RooUnfoldTestHarness3D.h`
+    - `test/src/RooUnfoldTestPdf.cxx`
+    - `test/src/RooUnfoldTestPdfRooFit.cxx`
+    - `test/src/RooUnfold_unit_tests.cxx`
+    - `test/src/bayes_test.cxx`
+    - `test/src/minunit.h`
+    - `test/src/unittests.h`
+
+- **Carsten Burgard**
+  - Years: 2019–2022, 2024–2025  *(span 2019–2025, 7 years)*
+  - Files (42):
+    - `python/__init__.py`
+    - `src/RooFitUnfold.cxx`
+    - `src/RooFitUnfold.h`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldBinByBin.h`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldErrors.h`
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldFitHelpers.h`
+    - `src/RooUnfoldGP.cxx`
+    - `src/RooUnfoldGP.h`
+    - `src/RooUnfoldHelpers.cxx`
+    - `src/RooUnfoldHelpers.h`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldInvert.h`
+    - `src/RooUnfoldParms.cxx`
+    - `src/RooUnfoldParms.h`
+    - `src/RooUnfoldPoisson.cxx`
+    - `src/RooUnfoldPoisson.h`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldResponse.h`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTH1Helpers.cxx`
+    - `src/RooUnfoldTH1Helpers.h`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+    - `src/RooUnfold_LinkDef.h`
+    - `test/generateRef.py`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestHarness.h`
+    - `test/src/RooUnfoldTestHarness2D.cxx`
+    - `test/src/RooUnfoldTestHarness2D.h`
+    - `test/src/RooUnfoldTestHarness3D.cxx`
+    - `test/src/RooUnfoldTestHarness3D.h`
+    - `test/test_utils.py`
+
+- **Lydia Brenner**
+  - Years: 2019, 2023  *(span 2019–2023, 5 years)*
+  - Files (5):
+    - `src/RooFitUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldResponse.cxx`
+
+- **Fergus Wilson**
+  - Years: 2005–2006, 2008  *(span 2005–2008, 4 years)*
+  - Files (7):
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `test/src/RooUnfoldTest.cxx`
+    - `test/src/RooUnfoldTest2D.cxx`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestPdf.cxx`
+    - `test/src/RooUnfoldTestPdfRooFit.cxx`
+
+- **Chris Meyer**
+  - Years: 2017, 2020  *(span 2017–2020, 4 years)*
+  - Files (2):
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+
+- **Pim Verschuuren**
+  - Years: 2019–2021  *(span 2019–2021, 3 years)*
+  - Files (28):
+    - `src/RooFitUnfold.cxx`
+    - `src/RooFitUnfold.h`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldBinByBin.h`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldFitHelpers.h`
+    - `src/RooUnfoldGP.cxx`
+    - `src/RooUnfoldGP.h`
+    - `src/RooUnfoldHelpers.cxx`
+    - `src/RooUnfoldHelpers.h`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldPoisson.cxx`
+    - `src/RooUnfoldPoisson.h`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldResponse.h`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTH1Helpers.cxx`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+    - `src/RooUnfold_LinkDef.h`
+
+- **Archit Agrawal**
+  - Years: 2021–2022  *(span 2021–2022, 2 years)*
+  - Files (3):
+    - `src/RooUnfold.cxx`
+    - `test/generateRef.py`
+    - `test/test_uncertainty.py`
+
+- **Roel Aaij**
+  - Years: 2025  *(span 2025–2025, 1 year)*
+  - Files (63):
+    - `python/__init__.py`
+    - `src/RooFitUnfold.cxx`
+    - `src/RooFitUnfold.h`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldBinByBin.h`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldErrors.h`
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldFitHelpers.h`
+    - `src/RooUnfoldGP.cxx`
+    - `src/RooUnfoldGP.h`
+    - `src/RooUnfoldHelpers.cxx`
+    - `src/RooUnfoldHelpers.h`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldInvert.h`
+    - `src/RooUnfoldParms.cxx`
+    - `src/RooUnfoldParms.h`
+    - `src/RooUnfoldPoisson.cxx`
+    - `src/RooUnfoldPoisson.h`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldResponse.h`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTH1Helpers.cxx`
+    - `src/RooUnfoldTH1Helpers.h`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+    - `src/RooUnfold_LinkDef.h`
+    - `test/generateRef.py`
+    - `test/src/ArgVar.h`
+    - `test/src/ArgVars.cxx`
+    - `test/src/ArgVars.h`
+    - `test/src/RooUnfoldTest.cxx`
+    - `test/src/RooUnfoldTest2D.cxx`
+    - `test/src/RooUnfoldTest3D.cxx`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestHarness.h`
+    - `test/src/RooUnfoldTestHarness2D.cxx`
+    - `test/src/RooUnfoldTestHarness2D.h`
+    - `test/src/RooUnfoldTestHarness3D.cxx`
+    - `test/src/RooUnfoldTestHarness3D.h`
+    - `test/src/RooUnfoldTestPdf.cxx`
+    - `test/src/RooUnfoldTestPdfRooFit.cxx`
+    - `test/src/RooUnfold_unit_tests.cxx`
+    - `test/src/bayes_test.cxx`
+    - `test/src/dbg.h`
+    - `test/src/generate_test.cxx`
+    - `test/src/minunit.h`
+    - `test/src/response_test.cxx`
+    - `test/test_2D.py`
+    - `test/test_3D.py`
+    - `test/test_bin_correlation.py`
+    - `test/test_fakes.py`
+    - `test/test_methods.py`
+    - `test/test_overflow.py`
+    - `test/test_uncertainty.py`
+    - `test/test_utils.py`
+
+- **Vincent Croft**
+  - Years: 2021  *(span 2021–2021, 1 year)*
+  - Files (39):
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldHelpers.h`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfold_LinkDef.h`
+    - `test/generateRef.py`
+    - `test/src/ArgVar.h`
+    - `test/src/ArgVars.cxx`
+    - `test/src/ArgVars.h`
+    - `test/src/RooUnfoldTest.cxx`
+    - `test/src/RooUnfoldTest2D.cxx`
+    - `test/src/RooUnfoldTest3D.cxx`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestHarness.h`
+    - `test/src/RooUnfoldTestHarness2D.cxx`
+    - `test/src/RooUnfoldTestHarness2D.h`
+    - `test/src/RooUnfoldTestHarness3D.cxx`
+    - `test/src/RooUnfoldTestHarness3D.h`
+    - `test/src/RooUnfoldTestPdf.cxx`
+    - `test/src/RooUnfoldTestPdfRooFit.cxx`
+    - `test/src/RooUnfold_unit_tests.cxx`
+    - `test/src/bayes_test.cxx`
+    - `test/src/dbg.h`
+    - `test/src/generate_test.cxx`
+    - `test/src/minunit.h`
+    - `test/src/response_test.cxx`
+    - `test/src/unittests.h`
+    - `test/test_2D.py`
+    - `test/test_3D.py`
+    - `test/test_bin_correlation.py`
+    - `test/test_fakes.py`
+    - `test/test_methods.py`
+    - `test/test_overflow.py`
+    - `test/test_uncertainty.py`
+    - `test/test_utils.py`
+
+- **Richard Claridge**
+  - Years: 2010  *(span 2010–2010, 1 year)*
+  - Files (22):
+    - `src/RooFitUnfold.h`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBayes.h`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldBinByBin.h`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldErrors.h`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldInvert.h`
+    - `src/RooUnfoldParms.cxx`
+    - `src/RooUnfoldParms.h`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldSvd.h`
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+    - `src/RooUnfold_LinkDef.h`
+    - `test/src/RooUnfoldTestHarness.cxx`
+    - `test/src/RooUnfoldTestHarness.h`
+    - `test/src/RooUnfoldTestHarness2D.cxx`
+
+- **David Hutchcroft**
+  - Years: 2021  *(span 2021–2021, 1 year)*
+  - Files (10):
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfoldBayes.cxx`
+    - `src/RooUnfoldBinByBin.cxx`
+    - `src/RooUnfoldErrors.cxx`
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldInvert.cxx`
+    - `src/RooUnfoldParms.cxx`
+    - `src/RooUnfoldResponse.cxx`
+    - `src/RooUnfoldSvd.cxx`
+    - `src/RooUnfoldTUnfold.cxx`
+
+- **Mars Lyukova**
+  - Years: 2024  *(span 2024–2024, 1 year)*
+  - Files (4):
+    - `src/RooFitUnfold.cxx`
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldResponse.cxx`
+
+- **Maximilian Goblirsch-Kolb**
+  - Years: 2019  *(span 2019–2019, 1 year)*
+  - Files (2):
+    - `src/RooUnfoldFitHelpers.cxx`
+    - `src/RooUnfoldHelpers.h`
+
+- **David Kavtaradze**
+  - Years: 2023  *(span 2023–2023, 1 year)*
+  - Files (2):
+    - `src/RooUnfold.cxx`
+    - `src/RooUnfold.h`
+
+- **Bogdan Malaescu**
+  - Years: 2017  *(span 2017–2017, 1 year)*
+  - Files (2):
+    - `src/RooUnfoldIds.cxx`
+    - `src/RooUnfoldIds.h`
+
+- **Callum McCracken**
+  - Years: 2024  *(span 2024–2024, 1 year)*
+  - Files (2):
+    - `src/RooFitUnfold.cxx`
+    - `src/RooUnfold.h`
+
+- **Andre Sailer**
+  - Years: 2024  *(span 2024–2024, 1 year)*
+  - Files (2):
+    - `src/RooUnfoldTUnfold.cxx`
+    - `src/RooUnfoldTUnfold.h`
+
