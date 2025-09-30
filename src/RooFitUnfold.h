@@ -31,16 +31,16 @@ class THStack;
 //! \author Carsten Burgard <cburgard@cern.ch>
 class RooUnfoldSpec : public TNamed {
 public:
-  enum Contribution {
-                     kBackgroundTruth,    
-                     kBackgroundMeasured,
-                     kData,
-                     kSignalResponse,
-                     kSignalTruth,
-                     kSignalMeasured
-  };
-  typedef std::vector<RooAbsReal*> ShapeSys;
-  typedef std::vector<double> NormSys;
+   enum Contribution {
+      kBackgroundTruth,
+      kBackgroundMeasured,
+      kData,
+      kSignalResponse,
+      kSignalTruth,
+      kSignalMeasured
+   };
+   typedef std::vector<RooAbsReal *> ShapeSys;
+   typedef std::vector<double> NormSys;
 
 protected:
    bool _locked = false;
@@ -179,8 +179,9 @@ public:
    const RooArgList &getRecoObservables() const { return _obs_reco; }
    const RooArgList &getObservables() const { return _obs_all; }
 
-  std::string createLikelihoodJSON(double tau, bool includ_sys=true, bool xs_pois=true, bool sanitizeSys=true) const;
-  
+   std::string
+   createLikelihoodJSON(double tau, bool includ_sys = true, bool xs_pois = true, bool sanitizeSys = true) const;
+
 protected:
    void addToCovarianceMatrix(const HistContainer &histContainer, TMatrixD &covarianceMatrix) const;
    void addShapeToCovarianceMatrix(const HistContainer &cont, const ShapeSys &var, TMatrixD &covarianceMatrix) const;

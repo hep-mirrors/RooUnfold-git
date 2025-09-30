@@ -77,51 +77,61 @@ public:
    virtual const char *GetName() const override;
    virtual const char *GetTitle() const override;
    virtual void Print(const char *opts = 0) const override;
-  
-  protected:
-    RooAbsReal* setupErrors(const RooHistFunc* hf, const RooDataHist* dh, double uncThreshold);    
-    RooAbsReal* _func;
-    std::vector<RooRealVar*> _obs;
-    std::vector<RooRealVar*> _gamma;
-    ClassDefOverride(RooFitHist,1)
-  };
-  
-  template<> struct Variable<RooFitHist> {
-    RooRealVar* _var;
-    Variable(RooRealVar* var);
-    bool irregular() const;
-    void print() const;
-  };
 
-  RooDataHist* convertTH1(const TH1* histo, const std::vector<RooRealVar*>& vars, bool includeUnderflowOverflow, bool correctDensity=false, double scale=1.);
-  double getIntegral(const TH1* histo, bool includeUnderflowOverflow, bool correctDensity);  
-  RooDataHist* convertTH1(const TH1* histo, const RooArgList& obs, bool includeUnderflowOverflow, bool correctDensity=false, double scale=1.);
-  std::vector<RooRealVar*> createGammas(const TH1* histo, bool includeUnderflowOverflow, double uncThreshold);
-  std::vector<RooRealVar*> createGammas(const RooDataHist* dh, const RooArgList& obs, double uncThreshold);
-  RooAbsReal* makeParamHistFunc(const char* name, const char* title, const RooArgList& obslist, const std::vector<RooRealVar*>& gamma);  
-  const RooArgSet* getObservables(const RooHistFunc* f);
-  void setGammaUncertainties(RooWorkspace* ws);
-  RooHistFunc* makeHistFunc(const TH1* histo, const RooArgList& obs, bool includeUnderflowOverflow, bool correctDensity=false);    
-  RooHistFunc* makeHistFunc(const char* name, const TH1* histo, const RooArgList& obs, bool includeUnderflowOverflow, bool correctDensity=false);  
-  RooHistFunc* makeHistFunc(RooDataHist* dhist, const std::vector<RooRealVar*>& obs); 
-  RooHistFunc* makeHistFunc(RooDataHist* dhist, const RooArgList& obs);
-  RooAbsPdf* makeHistPdf(const TH1* histo, const RooArgList& obs, bool includeUnderflowOverflow, bool correctDensity=false);    
-  RooAbsPdf* makeHistPdf(const char* name, const TH1* histo, const RooArgList& obs, bool includeUnderflowOverflow, bool correctDensity=false);  
-  RooAbsPdf* makeHistPdf(RooDataHist* dhist, const std::vector<RooRealVar*>& obs);  
-  void importToWorkspace(RooWorkspace* ws, RooAbsReal* object);
-  void importToWorkspace(RooWorkspace* ws, RooAbsData* object);
-  RooArgSet allVars(RooWorkspace* ws, const char* pattern);
-  template<class ObjT,class ListT>std::vector<ObjT*> matchingObjects(const ListT* c, const char* pattern);
-  std::vector<RooAbsReal*> matchingObjects(const RooAbsCollection* c, const char* pattern);
-  void printClients(const RooAbsArg* obj);
-  void printServers(const RooAbsArg* obj);
-  TH1* convertTH1(const TVectorD& values, const TVectorD& errors, const RooUnfolding::RooFitHist* hist);
-  TH1* convertTH1(const TVectorD& values, const RooUnfolding::RooFitHist* hist);
-  TH2* convertTH2(const TMatrixD& values, const TMatrixD& errors, const RooUnfolding::RooFitHist* hist);
+protected:
+   RooAbsReal *setupErrors(const RooHistFunc *hf, const RooDataHist *dh, double uncThreshold);
+   RooAbsReal *_func;
+   std::vector<RooRealVar *> _obs;
+   std::vector<RooRealVar *> _gamma;
+   ClassDefOverride(RooFitHist, 1)
+};
 
-  TH1* get_unfolded_histogram(const RooArgList& parameters, const TH1* hist_template, const std::string& parameter_template);
-  TH1* get_unfolded_histogram(RooWorkspace& workspace, const TH1* hist_template, const std::string& parameter_template);  
-}
+template <>
+struct Variable<RooFitHist> {
+   RooRealVar *_var;
+   Variable(RooRealVar *var);
+   bool irregular() const;
+   void print() const;
+};
+
+RooDataHist *convertTH1(const TH1 *histo, const std::vector<RooRealVar *> &vars, bool includeUnderflowOverflow,
+                        bool correctDensity = false, double scale = 1.);
+double getIntegral(const TH1 *histo, bool includeUnderflowOverflow, bool correctDensity);
+RooDataHist *convertTH1(const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow,
+                        bool correctDensity = false, double scale = 1.);
+std::vector<RooRealVar *> createGammas(const TH1 *histo, bool includeUnderflowOverflow, double uncThreshold);
+std::vector<RooRealVar *> createGammas(const RooDataHist *dh, const RooArgList &obs, double uncThreshold);
+RooAbsReal *makeParamHistFunc(const char *name, const char *title, const RooArgList &obslist,
+                              const std::vector<RooRealVar *> &gamma);
+const RooArgSet *getObservables(const RooHistFunc *f);
+void setGammaUncertainties(RooWorkspace *ws);
+RooHistFunc *
+makeHistFunc(const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow, bool correctDensity = false);
+RooHistFunc *makeHistFunc(const char *name, const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow,
+                          bool correctDensity = false);
+RooHistFunc *makeHistFunc(RooDataHist *dhist, const std::vector<RooRealVar *> &obs);
+RooHistFunc *makeHistFunc(RooDataHist *dhist, const RooArgList &obs);
+RooAbsPdf *
+makeHistPdf(const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow, bool correctDensity = false);
+RooAbsPdf *makeHistPdf(const char *name, const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow,
+                       bool correctDensity = false);
+RooAbsPdf *makeHistPdf(RooDataHist *dhist, const std::vector<RooRealVar *> &obs);
+void importToWorkspace(RooWorkspace *ws, RooAbsReal *object);
+void importToWorkspace(RooWorkspace *ws, RooAbsData *object);
+RooArgSet allVars(RooWorkspace *ws, const char *pattern);
+template <class ObjT, class ListT>
+std::vector<ObjT *> matchingObjects(const ListT *c, const char *pattern);
+std::vector<RooAbsReal *> matchingObjects(const RooAbsCollection *c, const char *pattern);
+void printClients(const RooAbsArg *obj);
+void printServers(const RooAbsArg *obj);
+TH1 *convertTH1(const TVectorD &values, const TVectorD &errors, const RooUnfolding::RooFitHist *hist);
+TH1 *convertTH1(const TVectorD &values, const RooUnfolding::RooFitHist *hist);
+TH2 *convertTH2(const TMatrixD &values, const TMatrixD &errors, const RooUnfolding::RooFitHist *hist);
+
+TH1 *get_unfolded_histogram(const RooArgList &parameters, const TH1 *hist_template,
+                            const std::string &parameter_template);
+TH1 *get_unfolded_histogram(RooWorkspace &workspace, const TH1 *hist_template, const std::string &parameter_template);
+} // namespace RooUnfolding
 
 #endif
 

@@ -931,494 +931,522 @@ void addSampleToDictionary(const std::string &histName, const RooUnfoldSpec::His
 }
 } // namespace
 
+namespace {
+std::vector<std::vector<double>> getBinCenters(const RooArgList &vars)
+{
+   size_t numVars = vars.getSize();
+   std::vector<std::vector<double>> result;
+   std::vector<size_t> counters(numVars, 0);
 
+   while (true) {
+      std::vector<double> binCenter(numVars);
+      bool done = true;
+
+      for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
+         auto *var = dynamic_cast<RooRealVar *>(vars.at(varIdx));
+         if (!var)
+            throw std::runtime_error("Non-RooRealVar object in RooArgList.");
+
+         size_t numBins = var->numBins();
+         binCenter[varIdx] = var->getBinning().binCenter(counters[varIdx]);
+
+         if (counters[varIdx] < numBins - 1)
+            done = false;
+      }
+
+      result.push_back(std::move(binCenter));
+
+      if (done)
+         break;
+
+      for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
+         auto *var = dynamic_cast<RooRealVar *>(vars.at(varIdx));
+         if (++counters[varIdx] < var->numBins()) {
+            break;
+         } else {
+            counters[varIdx] = 0;
+         }
+      }
+   }
+
+   return result;
+}
+void setValues(const RooArgList &vars, const std::vector<double> &values)
+{
+   for (size_t i = 0; i < vars.size(); ++i) {
+      static_cast<RooRealVar *>(&vars[i])->setVal(values[i]);
+   }
+}
+std::vector<double> v2v(const TVectorD &v)
+{
+   return std::vector<double>(v.GetMatrixArray(), v.GetMatrixArray() + v.GetNrows());
+}
+} // namespace
 
 namespace {
-std::vector<std::vector<double>> getBinCenters(const RooArgList& vars) {
-    size_t numVars = vars.getSize();
-    std::vector<std::vector<double>> result;
-    std::vector<size_t> counters(numVars, 0);
-
-    while (true) {
-        std::vector<double> binCenter(numVars);
-        bool done = true;
-
-        for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
-            auto* var = dynamic_cast<RooRealVar*>(vars.at(varIdx));
-            if (!var) throw std::runtime_error("Non-RooRealVar object in RooArgList.");
-
-            size_t numBins = var->numBins();
-            binCenter[varIdx] = var->getBinning().binCenter(counters[varIdx]);
-
-            if (counters[varIdx] < numBins - 1) done = false;
-        }
-
-        result.push_back(std::move(binCenter));
-
-        if (done) break;
-
-        for (size_t varIdx = 0; varIdx < numVars; ++varIdx) {
-            auto* var = dynamic_cast<RooRealVar*>(vars.at(varIdx));
-            if (++counters[varIdx] < var->numBins()) {
-                break;
-            } else {
-                counters[varIdx] = 0;
-            }
-        }
-    }
-
-    return result;
-}
-  void setValues(const RooArgList& vars, const std::vector<double>& values){
-    for(size_t i=0; i<vars.size(); ++i){
-      static_cast<RooRealVar*>(&vars[i])->setVal(values[i]);
-    }
-  }  
-  std::vector<double> v2v(const TVectorD& v){
-    return std::vector<double>(v.GetMatrixArray(),v.GetMatrixArray()+v.GetNrows());
-  }  
-}
-
-namespace {
-  template <typename K, typename V>
-  void expand_key_set(std::unordered_set<std::string>& key_set, const std::map<const K, V>& new_map) {
-    for (const auto& [key, _] : new_map) {
+template <typename K, typename V>
+void expand_key_set(std::unordered_set<std::string> &key_set, const std::map<const K, V> &new_map)
+{
+   for (const auto &[key, _] : new_map) {
       key_set.insert(key);
-    }
-  }
-  bool isCloseTo(double val, double ref, double tolerance){
-    return std::fabs(val - ref) <= tolerance;
-  }  
-  bool isCloseToOne(double val, double tolerance){
-    return isCloseTo(val,1.,tolerance);
-  }
-  void clearIfCloseToOne(std::vector<double>& vec, double tolerance) {
-    for (double val : vec) {
-      if (!isCloseToOne(val,tolerance)){
-	return;  // Found a value that deviates too much — do nothing
+   }
+}
+bool isCloseTo(double val, double ref, double tolerance)
+{
+   return std::fabs(val - ref) <= tolerance;
+}
+bool isCloseToOne(double val, double tolerance)
+{
+   return isCloseTo(val, 1., tolerance);
+}
+void clearIfCloseToOne(std::vector<double> &vec, double tolerance)
+{
+   for (double val : vec) {
+      if (!isCloseToOne(val, tolerance)) {
+         return; // Found a value that deviates too much — do nothing
       }
-    }
-    vec.clear();  // All values are within tolerance — clear the vector
-  }
-  double sanitize_ratio(double ratio, double bineff) {
-    const double a = 0.001;  // full suppression below this
-    const double b = 0.1;    // no effect above this
-    
-    double w;
-    if (bineff <= a) {
-      w = 0.0;
-    } else if (bineff >= b) {
-      w = 1.0;
-    } else {
-      double t = (bineff - a) / (b - a);
-      w = t * t * (3 - 2 * t);  // smoothstep
-    }
-    
-    return 1.0 + (ratio - 1.0) * w;
-  }
-  
-  
-  std::pair<double, std::vector<double>> factorize_sys(const std::vector<double>& nominal,const std::vector<double>& variation, bool sanitize){
-    if (nominal.size() != variation.size()) {
-      throw std::invalid_argument("Input vectors must have the same length.");
-    }
-    
-    double sum_nominal = std::accumulate(nominal.begin(), nominal.end(), 0.0);
-    double sum_variation = std::accumulate(variation.begin(), variation.end(), 0.0);    
+   }
+   vec.clear(); // All values are within tolerance — clear the vector
+}
+double sanitize_ratio(double ratio, double bineff)
+{
+   const double a = 0.001; // full suppression below this
+   const double b = 0.1;   // no effect above this
 
-    std::vector<double> component_ratios;
-    component_ratios.reserve(nominal.size());
-    if (sum_nominal == 0.0 || sum_variation == 0.0) {
-      return {1., component_ratios };
-    }
-    
-    double total_ratio = sum_variation / sum_nominal;
-    for (size_t i = 0; i < nominal.size(); ++i) {
-      const double v = variation[i]/sum_variation * sum_nominal;
-      const double n = nominal[i];
-      double ratio = v/n;
-      const double bineff = fabs(n/sum_nominal*nominal.size());
-      if(n == 0.){
-	ratio = 1.;
-      } 
-      component_ratios.push_back(sanitize ? sanitize_ratio(ratio,bineff) : ratio);
-    }
-    clearIfCloseToOne(component_ratios,1e-6);
-    std::vector<double> components;    
-    return { total_ratio, component_ratios };
-  }
-  void fill_vector(RooFit::Detail::JSONNode& node, const std::vector<double>& v){
-    node.set_seq();
-    for(size_t i=0; i<v.size(); ++i){
-      node.append_child() << v[i];
-    }
-  }
-  void fill_vector_product(RooFit::Detail::JSONNode& node, const std::vector<double>& v, const std::vector<double>& w, bool flip = false){
-    node.set_seq();
-    for(size_t i=0; i<v.size(); ++i){
-      node.append_child() << (flip ? w[i] * (2.-v[i]) : w[i]*v[i]);
-    }
-  }
+   double w;
+   if (bineff <= a) {
+      w = 0.0;
+   } else if (bineff >= b) {
+      w = 1.0;
+   } else {
+      double t = (bineff - a) / (b - a);
+      w = t * t * (3 - 2 * t); // smoothstep
+   }
+
+   return 1.0 + (ratio - 1.0) * w;
 }
 
-std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois, bool sanitize_sys) const {
-    // Create the JSON tree and set up the root node
-  using namespace RooFit::Detail;
-  auto tree = JSONTree::create();
-  auto& root = tree->rootnode();
-  root.set_map();
+std::pair<double, std::vector<double>>
+factorize_sys(const std::vector<double> &nominal, const std::vector<double> &variation, bool sanitize)
+{
+   if (nominal.size() != variation.size()) {
+      throw std::invalid_argument("Input vectors must have the same length.");
+   }
 
-  // Add metadata
-  root["metadata"].set_map()["hs3_version"] << "0.2";
+   double sum_nominal = std::accumulate(nominal.begin(), nominal.end(), 0.0);
+   double sum_variation = std::accumulate(variation.begin(), variation.end(), 0.0);
 
-  // Initialize JSON structure elements
-  auto& distributions = root["distributions"].set_seq();
-  auto& functions = root["functions"].set_seq();
-  auto& domains = root["domains"].set_seq();
-  auto& parameter_points = root["parameter_points"].set_seq();
-  auto& data = root["data"].set_seq();
-  auto& likelihoods = root["likelihoods"].set_seq();
-  auto& analyses = root["analyses"].set_seq();
+   std::vector<double> component_ratios;
+   component_ratios.reserve(nominal.size());
+   if (sum_nominal == 0.0 || sum_variation == 0.0) {
+      return {1., component_ratios};
+   }
 
-  auto writeObservable = [&](RooRealVar* r, JSONNode& axes){
-    auto& obs = axes.append_child().set_map();
-    obs["name"] << r->GetName();
-    if(!r->getBinning().isUniform()){
-      auto& bounds = obs["edges"].set_seq();
-      bounds.append_child() << r->getBinning().binLow(0);      
-      for(size_t i=0; i<r->numBins(); ++i){
-	bounds.append_child() << r->getBinning().binHigh(i);
+   double total_ratio = sum_variation / sum_nominal;
+   for (size_t i = 0; i < nominal.size(); ++i) {
+      const double v = variation[i] / sum_variation * sum_nominal;
+      const double n = nominal[i];
+      double ratio = v / n;
+      const double bineff = fabs(n / sum_nominal * nominal.size());
+      if (n == 0.) {
+         ratio = 1.;
       }
-    } else {
-      obs["nbins"] << r->getBinning().numBins();
-      obs["min"] << r->getMin();
-      obs["max"] << r->getMax();
-    }
-  };
-  auto writeHistogram = [&](auto& h, JSONNode& node){
-    node.set_map();
-    fill_vector(node["contents"],v2v(h2v(h,false,_useDensity)));
-  };  
-  auto writeAxes = [&](JSONNode& axes){
-    for(auto& obs:this->_obs_reco){
-      writeObservable(static_cast<RooRealVar*>(obs), axes);
-    }
-  };
-  auto writeParameter = [&](JSONNode& paramlist, const std::string& name, double value, bool constant=false){
-    auto& p = paramlist.append_child().set_map();
-    p["name"] << name;
-    p["value"] << value;
-    if(constant){
-      p["const"] << 1;
-    }
-  };
-  auto writeDomain = [&](JSONNode& paramlist, const std::string& name, double min, double max){
-    auto& p = paramlist.append_child().set_map();
-    p["name"] << name;
-    p["min"] << min;
-    p["max"] << max;
-  };
-  auto binVolume = [&](const RooArgList& observables){
-    double v = 1;
-    for(auto* x:observables){
-      RooRealVar* obs = static_cast<RooRealVar*>(x);      
-      const int binIdx = obs->getBinning().binNumber(obs->getVal());
-      v *= obs->getBinning().binWidth(binIdx);
-    }
-    return v;
-  };
+      component_ratios.push_back(sanitize ? sanitize_ratio(ratio, bineff) : ratio);
+   }
+   clearIfCloseToOne(component_ratios, 1e-6);
+   std::vector<double> components;
+   return {total_ratio, component_ratios};
+}
+void fill_vector(RooFit::Detail::JSONNode &node, const std::vector<double> &v)
+{
+   node.set_seq();
+   for (size_t i = 0; i < v.size(); ++i) {
+      node.append_child() << v[i];
+   }
+}
+void fill_vector_product(RooFit::Detail::JSONNode &node, const std::vector<double> &v, const std::vector<double> &w,
+                         bool flip = false)
+{
+   node.set_seq();
+   for (size_t i = 0; i < v.size(); ++i) {
+      node.append_child() << (flip ? w[i] * (2. - v[i]) : w[i] * v[i]);
+   }
+}
+} // namespace
 
-  // Add likelihood and analyses
-  auto& simultaneous_likelihood = likelihoods.append_child().set_map();
-  simultaneous_likelihood["name"] << "simultaneous_likelihood";
-  simultaneous_likelihood["data"].set_seq();
-  simultaneous_likelihood["distributions"].set_seq();
-  simultaneous_likelihood["aux_distributions"].set_seq();
+std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bool xs_pois, bool sanitize_sys) const
+{
+   // Create the JSON tree and set up the root node
+   using namespace RooFit::Detail;
+   auto tree = JSONTree::create();
+   auto &root = tree->rootnode();
+   root.set_map();
 
-  auto& unfolded_analysis = analyses.append_child().set_map();
-  std::string model_name = "unfolded_model";
-  unfolded_analysis["name"] << model_name;
-  unfolded_analysis["likelihood"] << "simultaneous_likelihood";
-  auto& analysis_domains = unfolded_analysis["domains"].set_seq();
-  auto& pois = unfolded_analysis["parameters_of_interest"].set_seq();
+   // Add metadata
+   root["metadata"].set_map()["hs3_version"] << "0.2";
 
-  auto createDomain = [&](const std::string& name, bool attach) -> JSONNode& {
-    auto& domain = domains.append_child().set_map();
-    if(attach) analysis_domains.append_child() << name;
-    domain["name"] << name;
-    domain["type"] << "product_domain";
-    return domain["axes"].set_seq();
-  };
-  
-  // Add domains and parameter points
-  auto& default_axes = createDomain("default_domain",false);
-  auto& poi_axes = createDomain(model_name+"_parameters_of_interest",true);
-  auto& obs_axes = createDomain(model_name+"_observables",true);
-  auto& globs_axes = createDomain(model_name+"_global_observables",true);  
-  auto& np_axes = createDomain(model_name+"_nuisance_parameters",true);
+   // Initialize JSON structure elements
+   auto &distributions = root["distributions"].set_seq();
+   auto &functions = root["functions"].set_seq();
+   auto &domains = root["domains"].set_seq();
+   auto &parameter_points = root["parameter_points"].set_seq();
+   auto &data = root["data"].set_seq();
+   auto &likelihoods = root["likelihoods"].set_seq();
+   auto &analyses = root["analyses"].set_seq();
 
-  for(auto& v:this->_obs_reco){
-    RooRealVar* obs = static_cast<RooRealVar*>(v);
-    writeDomain(obs_axes, obs->GetName(), obs->getMin(), obs->getMax());
-  }
-  
-  auto& default_values = parameter_points.append_child().set_map();
-  default_values["name"] << "default_values";
-  auto& default_parameters = default_values["parameters"].set_seq();
-
-  auto& background_values = parameter_points.append_child().set_map();
-  background_values["name"] << "background_only";
-  auto& background_parameters = background_values["parameters"].set_seq();
-
-  // add distributions
-  auto& signalregion = distributions.append_child().set_map();
-  signalregion["type"] << "histfactory_dist";
-  writeAxes(signalregion["axes"].set_seq());  
-  auto& pdf_name = "reco_SR";  
-  signalregion["name"] << pdf_name;
-  simultaneous_likelihood["distributions"].append_child() << pdf_name;
-  auto& samples = signalregion["samples"].set_seq();
-
-  // add the background sample
-  std::unordered_set<std::string> background_systematics;
-  if(include_sys){
-    expand_key_set(background_systematics,_bkg._shapes);
-  }  
-  if(_bkg._nom){
-    auto& background = samples.append_child().set_map();
-    background["name"] << "background";
-    writeHistogram(_bkg._nom,background["data"]);
-    auto& modifiers = background["modifiers"].set_seq();
-    auto& bkg_nf = modifiers.append_child().set_map();
-    bkg_nf["type"] << "normfactor";
-    bkg_nf["name"] << "bkg_norm";
-    writeParameter(default_parameters, "bkg_norm", 1., true);
-    writeDomain(np_axes, "bkg_norm", 0, 50.);
-    auto nominal = v2v(h2v(_bkg._nom,false,_useDensity));
-    double sum_nom = std::accumulate(nominal.begin(), nominal.end(), 0.0);    
-    for(const auto& k: background_systematics){
-      const auto& shape = *_bkg._shapes.find(k);
-      if(!shape.second.size() == 2){
-	throw std::runtime_error("cannot deal with bkg systematics that are not up/down");
-      } 
-      auto up = factorize_sys(v2v(h2v(shape.second[0],false,_useDensity)),nominal,sanitize);
-      auto dn = factorize_sys(v2v(h2v(shape.second[1],false,_useDensity)),nominal,sanitize);      
-      std::string pname;
-      if(!isCloseToOne(up.first,1e-6) || !isCloseToOne(dn.first,1e-6)){
-	auto& normsys = modifiers.append_child().set_map();
-	normsys["name"] << shape.first;
-	normsys["type"] << "normsys";
-	pname = "alpha_"+shape.first;
-	auto& normdata = normsys["data"].set_map();
-	normdata["hi"] << up.first;
-	normdata["lo"] << dn.first;
-	normdata["parameter"] << pname;	
+   auto writeObservable = [&](RooRealVar *r, JSONNode &axes) {
+      auto &obs = axes.append_child().set_map();
+      obs["name"] << r->GetName();
+      if (!r->getBinning().isUniform()) {
+         auto &bounds = obs["edges"].set_seq();
+         bounds.append_child() << r->getBinning().binLow(0);
+         for (size_t i = 0; i < r->numBins(); ++i) {
+            bounds.append_child() << r->getBinning().binHigh(i);
+         }
+      } else {
+         obs["nbins"] << r->getBinning().numBins();
+         obs["min"] << r->getMin();
+         obs["max"] << r->getMax();
       }
-      if(up.second.size()>0 || dn.second.size()>0){
-	auto& shapesys = modifiers.append_child().set_map();
-	shapesys["name"] << shape.first;
-	shapesys["type"] << "histosys";
-	pname = "alpha_"+shape.first;	
-	auto& shapedata = shapesys["data"].set_map();
-	if(up.second.size()>0) fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal);
-	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],dn.second,nominal,true);
-	if(dn.second.size()>0) fill_vector_product(shapedata["lo"].set_map()["contents"],dn.second,nominal);
-	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal,true);
-	shapedata["parameter"] << pname;	
+   };
+   auto writeHistogram = [&](auto &h, JSONNode &node) {
+      node.set_map();
+      fill_vector(node["contents"], v2v(h2v(h, false, _useDensity)));
+   };
+   auto writeAxes = [&](JSONNode &axes) {
+      for (auto &obs : this->_obs_reco) {
+         writeObservable(static_cast<RooRealVar *>(obs), axes);
       }
-    }
-  }
-  
-  // this is the part where the actual unfolding happens
-  const auto& truth_bins = getBinCenters(_obs_truth);
-  const auto& reco_bins = getBinCenters(_obs_reco);
-  struct Folding {
-    std::vector<std::vector<double> > response;
-    std::vector<double> fiducial;
-  };
-  
-  auto calculate_folding = [&](RooAbsReal* truth, RooAbsReal* res, RooAbsReal* reco){
-    Folding result;
-    for(const auto& truth_bin : truth_bins){
-      setValues(_obs_truth,truth_bin);
-      double fiducial_yield = truth->getVal() * binVolume(_obs_truth);
-      result.fiducial.push_back(fiducial_yield);
-      result.response.push_back(std::vector<double>());
-    }
-    result.response.push_back(std::vector<double>());   // this is for fakes
-    std::vector<double> fakes;
-    double total_fakes = 0;
-    for(const auto& reco_bin : reco_bins){
-      setValues(_obs_reco,reco_bin);
-      double observed_yield = reco->getVal() * binVolume(_obs_reco);
-      double sum_fiducial_yields = 0;
-      int i_truth=0;    
-      for(const auto& truth_bin : truth_bins){
-	setValues(_obs_truth,truth_bin);
-	double fiducial_yield = truth->getVal() * binVolume(_obs_truth);      
-	double response_yield = res->getVal() * binVolume(_obs_truth) * binVolume(_obs_reco);      
-	double response_function = response_yield/fiducial_yield;
-	result.response[i_truth].push_back(xs_pois ? response_function : response_function * fiducial_yield);
-	sum_fiducial_yields += response_function * fiducial_yield;
-	++i_truth;
+   };
+   auto writeParameter = [&](JSONNode &paramlist, const std::string &name, double value, bool constant = false) {
+      auto &p = paramlist.append_child().set_map();
+      p["name"] << name;
+      p["value"] << value;
+      if (constant) {
+         p["const"] << 1;
       }
-      double fake_yield = std::max(0.,observed_yield - sum_fiducial_yields);
-      total_fakes += fake_yield;
-      fakes.push_back(fake_yield);
-    }
-    result.fiducial.push_back(total_fakes);
-    for(size_t i=0; i<reco_bins.size(); ++i){
-      result.response[truth_bins.size()].push_back(xs_pois ? fakes[i] / total_fakes : fakes[i]);
-    }
-    return result;
-  };
-  
-  auto nominal_folding = calculate_folding(_truth._nom,_res._nom,_reco._nom);
-
-  std::unordered_set<std::string> signal_systematics;
-  if(include_sys){
-    expand_key_set(signal_systematics,_truth._shapes);
-    expand_key_set(signal_systematics,_res._shapes);
-    expand_key_set(signal_systematics,_reco._shapes);
-  }
-  std::map<std::string,Folding> up_systematics;
-  std::map<std::string,Folding> dn_systematics;  
-  for(const auto& k:signal_systematics){
-    auto* truth_up = _truth._nom;
-    auto*  reco_up = _reco._nom;
-    auto*   res_up = _res._nom;
-    auto* truth_dn = _truth._nom;
-    auto*  reco_dn = _reco._nom;
-    auto*   res_dn = _res._nom;    
-    auto truth_sys = _truth._shapes.find(k);
-    auto reco_sys  =  _reco._shapes.find(k);
-    auto res_sys   =   _res._shapes.find(k);
-    if(truth_sys != _truth._shapes.end()){
-      if(truth_sys->second.size() != 2) throw std::runtime_error("cannot deal with truth systematics that are not up/down");
-      truth_up = truth_sys->second[0];
-      truth_dn = truth_sys->second[1];
-    }
-    if(reco_sys != _reco._shapes.end()){
-      if(reco_sys->second.size() != 2) throw std::runtime_error("cannot deal with reco systematics that are not up/down");
-      reco_up = reco_sys->second[0];
-      reco_dn = reco_sys->second[1];
-    }
-    if(res_sys != _res._shapes.end()){
-      if(res_sys->second.size() != 2) throw std::runtime_error("cannot deal with resolution systematics that are not up/down");      
-      res_up = res_sys->second[0];
-      res_dn = res_sys->second[1];
-    }
-    up_systematics[k] = calculate_folding(truth_up,res_up,reco_up);
-    dn_systematics[k] = calculate_folding(truth_dn,res_dn,reco_dn);
-  }
-  
-  // add everything to the json structure
-  int i_truth = 0;
-  std::vector<std::string> poi_names, poi_nomnames;
-  std::unordered_set<std::string> np_names;
-  for(size_t i_truth=0; i_truth<=truth_bins.size(); ++i_truth){
-    auto& signal = samples.append_child().set_map();
-    std::string truth_cat = "fakes";
-    if(i_truth < truth_bins.size()) truth_cat = TString::Format("bin_%d",i_truth+1).Data();
-    signal["name"] << "signal_"+truth_cat;
-
-    auto& data = signal["data"].set_map();
-    const auto& nominal = nominal_folding.response[i_truth];
-    fill_vector(data["contents"],nominal);
-    
-    std::string poi = (xs_pois ? "xs_" : "mu_" ) + truth_cat;
-    std::string poi_nom = "nom_"+poi;
-
-    auto& modifiers = signal["modifiers"].set_seq();
-    
-    auto& xs = modifiers.append_child().set_map();
-    pois.append_child() << poi;
-    xs["name"] << poi;
-    xs["type"] << "normfactor";
-    for(const auto& k:signal_systematics){
-      auto up = factorize_sys(nominal,up_systematics[k].response[i_truth],sanitize_sys);
-      auto dn = factorize_sys(nominal,dn_systematics[k].response[i_truth],sanitize_sys);
-      std::string pname;
-      if(!isCloseToOne(up.first,1e-6) || !isCloseToOne(dn.first,1e-6)){
-	auto& normsys = modifiers.append_child().set_map();
-	normsys["name"] << k;
-	normsys["type"] << "normsys";
-	pname = "alpha_"+k;
-	auto& normdata = normsys["data"].set_map();
-	normdata["hi"] << up.first; 
-	normdata["lo"] << dn.first;
-	normdata["parameter"] << pname;
+   };
+   auto writeDomain = [&](JSONNode &paramlist, const std::string &name, double min, double max) {
+      auto &p = paramlist.append_child().set_map();
+      p["name"] << name;
+      p["min"] << min;
+      p["max"] << max;
+   };
+   auto binVolume = [&](const RooArgList &observables) {
+      double v = 1;
+      for (auto *x : observables) {
+         RooRealVar *obs = static_cast<RooRealVar *>(x);
+         const int binIdx = obs->getBinning().binNumber(obs->getVal());
+         v *= obs->getBinning().binWidth(binIdx);
       }
-      if(up.second.size()>0 || dn.second.size()>0){
-	auto& shapesys = modifiers.append_child().set_map();
-	shapesys["name"] << k;
-	shapesys["type"] << "histosys";
-	pname = "alpha_"+k;
-	auto& shapedata = shapesys["data"].set_map();
-	if(up.second.size()>0) fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal);
-	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],dn.second,nominal,true);
-	if(dn.second.size()>0) fill_vector_product(shapedata["lo"].set_map()["contents"],dn.second,nominal);
-	else                   fill_vector_product(shapedata["hi"].set_map()["contents"],up.second,nominal,true);
-	shapedata["parameter"] << pname;	
+      return v;
+   };
+
+   // Add likelihood and analyses
+   auto &simultaneous_likelihood = likelihoods.append_child().set_map();
+   simultaneous_likelihood["name"] << "simultaneous_likelihood";
+   simultaneous_likelihood["data"].set_seq();
+   simultaneous_likelihood["distributions"].set_seq();
+   simultaneous_likelihood["aux_distributions"].set_seq();
+
+   auto &unfolded_analysis = analyses.append_child().set_map();
+   std::string model_name = "unfolded_model";
+   unfolded_analysis["name"] << model_name;
+   unfolded_analysis["likelihood"] << "simultaneous_likelihood";
+   auto &analysis_domains = unfolded_analysis["domains"].set_seq();
+   auto &pois = unfolded_analysis["parameters_of_interest"].set_seq();
+
+   auto createDomain = [&](const std::string &name, bool attach) -> JSONNode & {
+      auto &domain = domains.append_child().set_map();
+      if (attach)
+         analysis_domains.append_child() << name;
+      domain["name"] << name;
+      domain["type"] << "product_domain";
+      return domain["axes"].set_seq();
+   };
+
+   // Add domains and parameter points
+   auto &default_axes = createDomain("default_domain", false);
+   auto &poi_axes = createDomain(model_name + "_parameters_of_interest", true);
+   auto &obs_axes = createDomain(model_name + "_observables", true);
+   auto &globs_axes = createDomain(model_name + "_global_observables", true);
+   auto &np_axes = createDomain(model_name + "_nuisance_parameters", true);
+
+   for (auto &v : this->_obs_reco) {
+      RooRealVar *obs = static_cast<RooRealVar *>(v);
+      writeDomain(obs_axes, obs->GetName(), obs->getMin(), obs->getMax());
+   }
+
+   auto &default_values = parameter_points.append_child().set_map();
+   default_values["name"] << "default_values";
+   auto &default_parameters = default_values["parameters"].set_seq();
+
+   auto &background_values = parameter_points.append_child().set_map();
+   background_values["name"] << "background_only";
+   auto &background_parameters = background_values["parameters"].set_seq();
+
+   // add distributions
+   auto &signalregion = distributions.append_child().set_map();
+   signalregion["type"] << "histfactory_dist";
+   writeAxes(signalregion["axes"].set_seq());
+   auto &pdf_name = "reco_SR";
+   signalregion["name"] << pdf_name;
+   simultaneous_likelihood["distributions"].append_child() << pdf_name;
+   auto &samples = signalregion["samples"].set_seq();
+
+   // add the background sample
+   std::unordered_set<std::string> background_systematics;
+   if (include_sys) {
+      expand_key_set(background_systematics, _bkg._shapes);
+   }
+   if (_bkg._nom) {
+      auto &background = samples.append_child().set_map();
+      background["name"] << "background";
+      writeHistogram(_bkg._nom, background["data"]);
+      auto &modifiers = background["modifiers"].set_seq();
+      auto &bkg_nf = modifiers.append_child().set_map();
+      bkg_nf["type"] << "normfactor";
+      bkg_nf["name"] << "bkg_norm";
+      writeParameter(default_parameters, "bkg_norm", 1., true);
+      writeDomain(np_axes, "bkg_norm", 0, 50.);
+      auto nominal = v2v(h2v(_bkg._nom, false, _useDensity));
+      double sum_nom = std::accumulate(nominal.begin(), nominal.end(), 0.0);
+      for (const auto &k : background_systematics) {
+         const auto &shape = *_bkg._shapes.find(k);
+         if (!shape.second.size() == 2) {
+            throw std::runtime_error("cannot deal with bkg systematics that are not up/down");
+         }
+         auto up = factorize_sys(v2v(h2v(shape.second[0], false, _useDensity)), nominal, sanitize);
+         auto dn = factorize_sys(v2v(h2v(shape.second[1], false, _useDensity)), nominal, sanitize);
+         std::string pname;
+         if (!isCloseToOne(up.first, 1e-6) || !isCloseToOne(dn.first, 1e-6)) {
+            auto &normsys = modifiers.append_child().set_map();
+            normsys["name"] << shape.first;
+            normsys["type"] << "normsys";
+            pname = "alpha_" + shape.first;
+            auto &normdata = normsys["data"].set_map();
+            normdata["hi"] << up.first;
+            normdata["lo"] << dn.first;
+            normdata["parameter"] << pname;
+         }
+         if (up.second.size() > 0 || dn.second.size() > 0) {
+            auto &shapesys = modifiers.append_child().set_map();
+            shapesys["name"] << shape.first;
+            shapesys["type"] << "histosys";
+            pname = "alpha_" + shape.first;
+            auto &shapedata = shapesys["data"].set_map();
+            if (up.second.size() > 0)
+               fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal);
+            else
+               fill_vector_product(shapedata["hi"].set_map()["contents"], dn.second, nominal, true);
+            if (dn.second.size() > 0)
+               fill_vector_product(shapedata["lo"].set_map()["contents"], dn.second, nominal);
+            else
+               fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal, true);
+            shapedata["parameter"] << pname;
+         }
       }
-      if(!pname.empty()) np_names.insert(pname);
-    }
-    
-    double poival = xs_pois ? nominal_folding.fiducial[i_truth] : 1.;
-    writeParameter(default_parameters, poi, poival);
-    writeParameter(background_parameters, poi, 0);
-    writeParameter(default_parameters, poi_nom, poival, true);
-    writeDomain(poi_axes, poi, 0, fabs(10*poival));
-    writeDomain(globs_axes, poi_nom, 0, fabs(10*poival));        
-    poi_names.push_back(poi);
-    poi_nomnames.push_back(poi_nom);
-  }
-  
-  for(const auto& np: np_names){
-    writeParameter(default_parameters, np, 0.);
-    writeDomain(np_axes, np, -5., 5.);
-  }
+   }
 
-  // create regularization term
-  if(tau > 0){
-    std::stringstream tikhonov_differential;
-    for(size_t i=1; i<poi_names.size()-2; ++i){ // skip fakes
-      if(i>1) tikhonov_differential << "+";
-      tikhonov_differential << "pow(" << 
-	poi_names[i-1] << "/" << poi_nomnames[i-1] <<
-	"-2*" << poi_names[i] << "/" << poi_nomnames[i] <<
-	"+" << poi_names[i+1] << "/" << poi_nomnames[i+1] <<
-	",2)";
-    }
-    auto& regularization_dist = distributions.append_child().set_map();
-    regularization_dist["type"] << "exponential_dist";
-    regularization_dist["x"] << "tikhonov_differential";
-    regularization_dist["c"] << "tau";
-    regularization_dist["name"] << "regularization";
-    auto& regularization_func = functions.append_child().set_map();
-    regularization_func["type"] << "generic_function";
-    regularization_func["name"] << "tikhonov_differential";
-    regularization_func["expression"] << tikhonov_differential.str().c_str();
-    simultaneous_likelihood["aux_distributions"].append_child() << "regularization";
-    auto& tau_val = default_parameters.append_child().set_map();
-    tau_val["name"] << "tau";
-    tau_val["value"] << tau;;
-    tau_val["const"] << 1;    
-  }
+   // this is the part where the actual unfolding happens
+   const auto &truth_bins = getBinCenters(_obs_truth);
+   const auto &reco_bins = getBinCenters(_obs_reco);
+   struct Folding {
+      std::vector<std::vector<double>> response;
+      std::vector<double> fiducial;
+   };
 
-  // Add data
-  std::string data_name = "measured_data";
-  auto& data_entry = data.append_child().set_map();
-  writeHistogram(_data._nom,data_entry);
-  writeAxes(data_entry["axes"].set_seq());  
-  data_entry["name"] << data_name;
-  data_entry["type"] << "binned";
-  simultaneous_likelihood["data"].append_child() << data_name;
+   auto calculate_folding = [&](RooAbsReal *truth, RooAbsReal *res, RooAbsReal *reco) {
+      Folding result;
+      for (const auto &truth_bin : truth_bins) {
+         setValues(_obs_truth, truth_bin);
+         double fiducial_yield = truth->getVal() * binVolume(_obs_truth);
+         result.fiducial.push_back(fiducial_yield);
+         result.response.push_back(std::vector<double>());
+      }
+      result.response.push_back(std::vector<double>()); // this is for fakes
+      std::vector<double> fakes;
+      double total_fakes = 0;
+      for (const auto &reco_bin : reco_bins) {
+         setValues(_obs_reco, reco_bin);
+         double observed_yield = reco->getVal() * binVolume(_obs_reco);
+         double sum_fiducial_yields = 0;
+         int i_truth = 0;
+         for (const auto &truth_bin : truth_bins) {
+            setValues(_obs_truth, truth_bin);
+            double fiducial_yield = truth->getVal() * binVolume(_obs_truth);
+            double response_yield = res->getVal() * binVolume(_obs_truth) * binVolume(_obs_reco);
+            double response_function = response_yield / fiducial_yield;
+            result.response[i_truth].push_back(xs_pois ? response_function : response_function * fiducial_yield);
+            sum_fiducial_yields += response_function * fiducial_yield;
+            ++i_truth;
+         }
+         double fake_yield = std::max(0., observed_yield - sum_fiducial_yields);
+         total_fakes += fake_yield;
+         fakes.push_back(fake_yield);
+      }
+      result.fiducial.push_back(total_fakes);
+      for (size_t i = 0; i < reco_bins.size(); ++i) {
+         result.response[truth_bins.size()].push_back(xs_pois ? fakes[i] / total_fakes : fakes[i]);
+      }
+      return result;
+   };
 
-  // Serialize the tree to a string
-  std::stringstream ss;
-  root.writeJSON(ss);
-  return ss.str();
+   auto nominal_folding = calculate_folding(_truth._nom, _res._nom, _reco._nom);
+
+   std::unordered_set<std::string> signal_systematics;
+   if (include_sys) {
+      expand_key_set(signal_systematics, _truth._shapes);
+      expand_key_set(signal_systematics, _res._shapes);
+      expand_key_set(signal_systematics, _reco._shapes);
+   }
+   std::map<std::string, Folding> up_systematics;
+   std::map<std::string, Folding> dn_systematics;
+   for (const auto &k : signal_systematics) {
+      auto *truth_up = _truth._nom;
+      auto *reco_up = _reco._nom;
+      auto *res_up = _res._nom;
+      auto *truth_dn = _truth._nom;
+      auto *reco_dn = _reco._nom;
+      auto *res_dn = _res._nom;
+      auto truth_sys = _truth._shapes.find(k);
+      auto reco_sys = _reco._shapes.find(k);
+      auto res_sys = _res._shapes.find(k);
+      if (truth_sys != _truth._shapes.end()) {
+         if (truth_sys->second.size() != 2)
+            throw std::runtime_error("cannot deal with truth systematics that are not up/down");
+         truth_up = truth_sys->second[0];
+         truth_dn = truth_sys->second[1];
+      }
+      if (reco_sys != _reco._shapes.end()) {
+         if (reco_sys->second.size() != 2)
+            throw std::runtime_error("cannot deal with reco systematics that are not up/down");
+         reco_up = reco_sys->second[0];
+         reco_dn = reco_sys->second[1];
+      }
+      if (res_sys != _res._shapes.end()) {
+         if (res_sys->second.size() != 2)
+            throw std::runtime_error("cannot deal with resolution systematics that are not up/down");
+         res_up = res_sys->second[0];
+         res_dn = res_sys->second[1];
+      }
+      up_systematics[k] = calculate_folding(truth_up, res_up, reco_up);
+      dn_systematics[k] = calculate_folding(truth_dn, res_dn, reco_dn);
+   }
+
+   // add everything to the json structure
+   int i_truth = 0;
+   std::vector<std::string> poi_names, poi_nomnames;
+   std::unordered_set<std::string> np_names;
+   for (size_t i_truth = 0; i_truth <= truth_bins.size(); ++i_truth) {
+      auto &signal = samples.append_child().set_map();
+      std::string truth_cat = "fakes";
+      if (i_truth < truth_bins.size())
+         truth_cat = TString::Format("bin_%d", i_truth + 1).Data();
+      signal["name"] << "signal_" + truth_cat;
+
+      auto &data = signal["data"].set_map();
+      const auto &nominal = nominal_folding.response[i_truth];
+      fill_vector(data["contents"], nominal);
+
+      std::string poi = (xs_pois ? "xs_" : "mu_") + truth_cat;
+      std::string poi_nom = "nom_" + poi;
+
+      auto &modifiers = signal["modifiers"].set_seq();
+
+      auto &xs = modifiers.append_child().set_map();
+      pois.append_child() << poi;
+      xs["name"] << poi;
+      xs["type"] << "normfactor";
+      for (const auto &k : signal_systematics) {
+         auto up = factorize_sys(nominal, up_systematics[k].response[i_truth], sanitize_sys);
+         auto dn = factorize_sys(nominal, dn_systematics[k].response[i_truth], sanitize_sys);
+         std::string pname;
+         if (!isCloseToOne(up.first, 1e-6) || !isCloseToOne(dn.first, 1e-6)) {
+            auto &normsys = modifiers.append_child().set_map();
+            normsys["name"] << k;
+            normsys["type"] << "normsys";
+            pname = "alpha_" + k;
+            auto &normdata = normsys["data"].set_map();
+            normdata["hi"] << up.first;
+            normdata["lo"] << dn.first;
+            normdata["parameter"] << pname;
+         }
+         if (up.second.size() > 0 || dn.second.size() > 0) {
+            auto &shapesys = modifiers.append_child().set_map();
+            shapesys["name"] << k;
+            shapesys["type"] << "histosys";
+            pname = "alpha_" + k;
+            auto &shapedata = shapesys["data"].set_map();
+            if (up.second.size() > 0)
+               fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal);
+            else
+               fill_vector_product(shapedata["hi"].set_map()["contents"], dn.second, nominal, true);
+            if (dn.second.size() > 0)
+               fill_vector_product(shapedata["lo"].set_map()["contents"], dn.second, nominal);
+            else
+               fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal, true);
+            shapedata["parameter"] << pname;
+         }
+         if (!pname.empty())
+            np_names.insert(pname);
+      }
+
+      double poival = xs_pois ? nominal_folding.fiducial[i_truth] : 1.;
+      writeParameter(default_parameters, poi, poival);
+      writeParameter(background_parameters, poi, 0);
+      writeParameter(default_parameters, poi_nom, poival, true);
+      writeDomain(poi_axes, poi, 0, fabs(10 * poival));
+      writeDomain(globs_axes, poi_nom, 0, fabs(10 * poival));
+      poi_names.push_back(poi);
+      poi_nomnames.push_back(poi_nom);
+   }
+
+   for (const auto &np : np_names) {
+      writeParameter(default_parameters, np, 0.);
+      writeDomain(np_axes, np, -5., 5.);
+   }
+
+   // create regularization term
+   if (tau > 0) {
+      std::stringstream tikhonov_differential;
+      for (size_t i = 1; i < poi_names.size() - 2; ++i) { // skip fakes
+         if (i > 1)
+            tikhonov_differential << "+";
+         tikhonov_differential << "pow(" << poi_names[i - 1] << "/" << poi_nomnames[i - 1] << "-2*" << poi_names[i]
+                               << "/" << poi_nomnames[i] << "+" << poi_names[i + 1] << "/" << poi_nomnames[i + 1]
+                               << ",2)";
+      }
+      auto &regularization_dist = distributions.append_child().set_map();
+      regularization_dist["type"] << "exponential_dist";
+      regularization_dist["x"] << "tikhonov_differential";
+      regularization_dist["c"] << "tau";
+      regularization_dist["name"] << "regularization";
+      auto &regularization_func = functions.append_child().set_map();
+      regularization_func["type"] << "generic_function";
+      regularization_func["name"] << "tikhonov_differential";
+      regularization_func["expression"] << tikhonov_differential.str().c_str();
+      simultaneous_likelihood["aux_distributions"].append_child() << "regularization";
+      auto &tau_val = default_parameters.append_child().set_map();
+      tau_val["name"] << "tau";
+      tau_val["value"] << tau;
+      ;
+      tau_val["const"] << 1;
+   }
+
+   // Add data
+   std::string data_name = "measured_data";
+   auto &data_entry = data.append_child().set_map();
+   writeHistogram(_data._nom, data_entry);
+   writeAxes(data_entry["axes"].set_seq());
+   data_entry["name"] << data_name;
+   data_entry["type"] << "binned";
+   simultaneous_likelihood["data"].append_child() << data_name;
+
+   // Serialize the tree to a string
+   std::stringstream ss;
+   root.writeJSON(ss);
+   return ss.str();
 }
 
 RooUnfolding::RooFitHist *RooUnfoldSpec::makeHistogram(const HistContainer &source, double /*errorThreshold*/)
@@ -1763,69 +1791,76 @@ void RooUnfoldSpec::checkConsistency(const HistContainer &cont, const TH1 *hist)
    }
 }
 
-void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, const TH1* up, const TH1* down){
-  //! register a new shape systematic
-  this->lockCheck();
-  // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore  
-  switch(c){
-  case kSignalTruth:
-    this->checkConsistency(this->_truth,up);
-    this->checkConsistency(this->_truth,down);
-    this->_truth.addShape(name,
-                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_up",up->GetName(),name),up,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity),
-                          RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_dn",down->GetName(),name),down,this->_obs_truth,this->_includeUnderflowOverflow,!this->_useDensity));
-    break;
-  case kSignalMeasured:
-    this->checkConsistency(this->_reco,up);
-    this->checkConsistency(this->_reco,down);
-    this->_reco.addShape(name,
-                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
-                         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
-    break;
-  case kData:
-    this->checkConsistency(this->_data,up);
-    this->checkConsistency(this->_data,down);
-    this->_data.addShape(name,
-                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
-                         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
-    break;
-  case kSignalResponse:
-    this->checkConsistency(this->_res,up);
-    this->checkConsistency(this->_res,down);
-    this->_res.addShape(name,
-                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_up",up->GetName(),name),up,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity),
-                        RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_dn",down->GetName(),name),down,this->_obs_all,this->_includeUnderflowOverflow,!this->_useDensity));
-    break;
-  case kBackgroundMeasured:
-    this->checkConsistency(this->_bkg,up);
-    this->checkConsistency(this->_bkg,down);
-    this->_bkg.addShape(name,
-                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_up",up->GetName(),name),up,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity),
-                        RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_dn",down->GetName(),name),down,this->_obs_reco,this->_includeUnderflowOverflow,!this->_useDensity));
-    break;
-  }
+void RooUnfoldSpec::registerSystematic(Contribution c, const char *name, const TH1 *up, const TH1 *down)
+{
+   //! register a new shape systematic
+   this->lockCheck();
+   // if useDensity is true, the inputs are already in density space - then we don't need to correct anymore
+   switch (c) {
+   case kSignalTruth:
+      this->checkConsistency(this->_truth, up);
+      this->checkConsistency(this->_truth, down);
+      this->_truth.addShape(
+         name,
+         RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_up", up->GetName(), name), up, this->_obs_truth,
+                                    this->_includeUnderflowOverflow, !this->_useDensity),
+         RooUnfolding::makeHistFunc(TString::Format("truth_%s_%s_dn", down->GetName(), name), down, this->_obs_truth,
+                                    this->_includeUnderflowOverflow, !this->_useDensity));
+      break;
+   case kSignalMeasured:
+      this->checkConsistency(this->_reco, up);
+      this->checkConsistency(this->_reco, down);
+      this->_reco.addShape(
+         name,
+         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_up", up->GetName(), name), up, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity),
+         RooUnfolding::makeHistFunc(TString::Format("meas_%s_%s_dn", down->GetName(), name), down, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity));
+      break;
+   case kData:
+      this->checkConsistency(this->_data, up);
+      this->checkConsistency(this->_data, down);
+      this->_data.addShape(
+         name,
+         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_up", up->GetName(), name), up, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity),
+         RooUnfolding::makeHistFunc(TString::Format("data_%s_%s_dn", down->GetName(), name), down, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity));
+      break;
+   case kSignalResponse:
+      this->checkConsistency(this->_res, up);
+      this->checkConsistency(this->_res, down);
+      this->_res.addShape(
+         name,
+         RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_up", up->GetName(), name), up, this->_obs_all,
+                                    this->_includeUnderflowOverflow, !this->_useDensity),
+         RooUnfolding::makeHistFunc(TString::Format("resp_%s_%s_dn", down->GetName(), name), down, this->_obs_all,
+                                    this->_includeUnderflowOverflow, !this->_useDensity));
+      break;
+   case kBackgroundMeasured:
+      this->checkConsistency(this->_bkg, up);
+      this->checkConsistency(this->_bkg, down);
+      this->_bkg.addShape(
+         name,
+         RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_up", up->GetName(), name), up, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity),
+         RooUnfolding::makeHistFunc(TString::Format("bkg_%s_%s_dn", down->GetName(), name), down, this->_obs_reco,
+                                    this->_includeUnderflowOverflow, !this->_useDensity));
+      break;
+   }
 }
 
-void RooUnfoldSpec::registerSystematic(Contribution c, const char* name, double up, double down){
-  //! register a new normalization systematic
-  this->lockCheck();
-  switch(c){
-  case kSignalTruth:
-    this->_truth.addNorm(name,up,down);
-    break;
-  case kSignalMeasured:
-    this->_reco.addNorm(name,up,down);
-    break;
-  case kData:
-    this->_data.addNorm(name,up,down);
-    break;
-  case kSignalResponse:
-    this->_res.addNorm(name,up,down);
-    break;
-  case kBackgroundMeasured:
-    this->_bkg.addNorm(name,up,down);
-    break;
-  }
+void RooUnfoldSpec::registerSystematic(Contribution c, const char *name, double up, double down)
+{
+   //! register a new normalization systematic
+   this->lockCheck();
+   switch (c) {
+   case kSignalTruth: this->_truth.addNorm(name, up, down); break;
+   case kSignalMeasured: this->_reco.addNorm(name, up, down); break;
+   case kData: this->_data.addNorm(name, up, down); break;
+   case kSignalResponse: this->_res.addNorm(name, up, down); break;
+   case kBackgroundMeasured: this->_bkg.addNorm(name, up, down); break;
+   }
 }
 
 #ifdef NO_WRAPPERPDF
