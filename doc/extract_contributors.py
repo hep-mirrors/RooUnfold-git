@@ -52,6 +52,7 @@ AUTHOR_LINE_RE = re.compile(
     re.VERBOSE,
 )
 
+
 def extract_header_block(text: str) -> Optional[str]:
     """Return the ROOUNFOLD COPYRIGHT block if present, else None."""
     m = re.search(
@@ -69,6 +70,7 @@ def extract_header_block(text: str) -> Optional[str]:
     pseudo = text[start : start + 4000]
     return pseudo
 
+
 def parse_authors_from_text(text: str) -> List[Tuple[str, Optional[str], str]]:
     """
     Parse authors from the given text chunk.
@@ -84,6 +86,7 @@ def parse_authors_from_text(text: str) -> List[Tuple[str, Optional[str], str]]:
             years = re.sub(r"\s+", " ", years)
             authors.append((name, email, years))
     return authors
+
 
 def _tokenize_years(ystr: str) -> Set[int]:
     """
@@ -116,6 +119,7 @@ def _tokenize_years(ystr: str) -> Set[int]:
         for y in re.findall(r"\d{4}", token):
             years.add(int(y))
     return years
+
 
 def normalize_years_union(years_strings: Set[str]) -> Tuple[str, Optional[int], Optional[int], int]:
     """
@@ -155,6 +159,7 @@ def normalize_years_union(years_strings: Set[str]) -> Tuple[str, Optional[int], 
     earliest, latest = ys[0], ys[-1]
     span = latest - earliest + 1  # inclusive span
     return (pretty, earliest, latest, span)
+
 
 def collect_from_files(files: List[Path]):
     """
@@ -199,12 +204,13 @@ def collect_from_files(files: List[Path]):
         }
     return info
 
+
 def write_contributors_md(out_path: Path, info: Dict[str, dict]) -> None:
     """Write a CONTRIBUTORS.md file summarizing authors across files, sorted by span."""
     # Sort by span desc, then by #files desc, then name
     ordering = sorted(
         info.items(),
-        key=lambda kv: (- (kv[1]["span"] or 0), -len(kv[1]["files"]), kv[0].split()[-1].lower(), kv[0].lower()),
+        key=lambda kv: (-(kv[1]["span"] or 0), -len(kv[1]["files"]), kv[0].split()[-1].lower(), kv[0].lower()),
     )
 
     lines: List[str] = []
@@ -228,7 +234,9 @@ def write_contributors_md(out_path: Path, info: Dict[str, dict]) -> None:
         # Years + span
         if years_pretty:
             if earliest is not None and latest is not None:
-                lines.append(f"  - Years: {years_pretty}  *(span {earliest}–{latest}, {span} year{'s' if span!=1 else ''})*")
+                lines.append(
+                    f"  - Years: {years_pretty}  *(span {earliest}–{latest}, {span} year{'s' if span != 1 else ''})*"
+                )
             else:
                 lines.append(f"  - Years: {years_pretty}")
         else:
@@ -242,6 +250,7 @@ def write_contributors_md(out_path: Path, info: Dict[str, dict]) -> None:
 
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {out_path}")
+
 
 def main():
     ap = argparse.ArgumentParser(description="Extract contributors from RooUnfold-style headers.")
@@ -264,6 +273,7 @@ def main():
     if not info:
         print("No contributors found in the provided files.")
     write_contributors_md(args.output, info)
+
 
 if __name__ == "__main__":
     main()
