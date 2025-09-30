@@ -77,6 +77,21 @@ public:
    virtual const char *GetName() const override;
    virtual const char *GetTitle() const override;
    virtual void Print(const char *opts = 0) const override;
+  
+  protected:
+    RooAbsReal* setupErrors(const RooHistFunc* hf, const RooDataHist* dh, double uncThreshold);    
+    RooAbsReal* _func;
+    std::vector<RooRealVar*> _obs;
+    std::vector<RooRealVar*> _gamma;
+    ClassDefOverride(RooFitHist,1)
+  };
+  
+  template<> struct Variable<RooFitHist> {
+    RooRealVar* _var;
+    Variable(RooRealVar* var);
+    bool irregular() const;
+    void print() const;
+  };
 
   RooDataHist* convertTH1(const TH1* histo, const std::vector<RooRealVar*>& vars, bool includeUnderflowOverflow, bool correctDensity=false, double scale=1.);
   double getIntegral(const TH1* histo, bool includeUnderflowOverflow, bool correctDensity);  

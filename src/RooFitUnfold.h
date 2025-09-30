@@ -179,9 +179,6 @@ public:
    const RooArgList &getRecoObservables() const { return _obs_reco; }
    const RooArgList &getObservables() const { return _obs_all; }
 
-   std::map<std::string, TH1 *> createHistogramDictionary() const;
-   std::string createLikelihoodConfig() const;
-
   std::string createLikelihoodJSON(double tau, bool includ_sys=true, bool xs_pois=true, bool sanitizeSys=true) const;
   
 protected:

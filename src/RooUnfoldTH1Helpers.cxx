@@ -223,10 +223,6 @@ Hist *createHist(const TVectorD &vec, const TVectorD &errvec, const char *name, 
   // Specializations for TH1 as Hist and TH2 as AnyHist
   template TH1* createHist<TH1, TH2>(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
 
-// Specializations for TH1 as Hist and TH2 as AnyHist
-template TH1 *createHist<TH1, TH2>(const TVectorD &vec, const TVectorD &errvec, const char *name, const char *title,
-                                   const std::vector<Variable<TH2>> &x, bool overflow);
-
 // Specializations for TH2 as Hist and TH1 as AnyHist
 template TH2 *createHist<TH2, TH1>(const TMatrixD &m, const TMatrixD &me, const char *name, const char *title,
                                    const std::vector<Variable<TH1>> &x, bool overflow);
