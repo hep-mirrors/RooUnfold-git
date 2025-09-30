@@ -613,42 +613,53 @@ inline double useIf(double val, bool selector)
 
 namespace RooUnfolding { // section 2: non-trivial helpers
 
-const char *RooFitHist::name() const
-{
-   return this->_func->GetName();
-}
-const char *RooFitHist::title() const
-{
-   return this->_func->GetTitle();
-}
-RooRealVar *RooFitHist::obs(size_t i) const
-{
-   if (i > this->_obs.size())
-      throw std::runtime_error("attempt to access invalid observable!");
-   return this->_obs[i];
-}
-size_t RooFitHist::dim() const
-{
-   return this->_obs.size();
-}
-
-const char *RooFitHist::GetName() const
-{
-   return this->name();
-}
-const char *RooFitHist::GetTitle() const
-{
-   return this->title();
-}
-void RooFitHist::Print(const char * /*opts*/) const
-{
-   std::cout << this->GetName() << " " << this->GetTitle() << std::endl;
-   this->printHist();
-}
-
-void RooFitHist::saveSnapshot(std::map<std::string, double> &snsh) const
-{
-   for (size_t i = 0; i < this->_obs.size(); ++i) {
+  TH1* get_unfolded_histogram(RooWorkspace& workspace, const TH1* hist_template, const std::string& parameter_template) {
+    return get_unfolded_histogram(workspace.allVars(), hist_template, parameter_template);
+  }
+  TH1* get_unfolded_histogram(const RooArgList& parameters, const TH1* hist_template, const std::string& parameter_template) {
+    TH1* unfolded = (TH1*)hist_template->Clone();
+    unfolded->Reset();
+    
+    int nbins = unfolded->GetNbinsX();
+    for (int i = 1; i <= nbins; ++i) {
+      std::ostringstream param_name;
+      param_name << parameter_template;
+      
+      // Replace '{}' or any format specifier with the index `i`
+      size_t pos = param_name.str().find("{}");
+      if (pos != std::string::npos) {
+	param_name.str().replace(pos, 2, std::to_string(i));
+      } else {
+	// fallback for template like "my_param_%d"
+	param_name.str(""); // reset
+	char buffer[256];
+	snprintf(buffer, sizeof(buffer), parameter_template.c_str(), i);
+	param_name << buffer;
+      }
+      
+      RooRealVar* var = dynamic_cast<RooRealVar*>(parameters.find(param_name.str().c_str()));
+      if (!var) {
+	throw std::runtime_error("failed to retrieve '" + param_name.str() + "'");
+      }
+      
+      unfolded->SetBinContent(i, var->getVal());
+      unfolded->SetBinError(i, var->getError());
+    }
+    
+    return unfolded;
+  }
+  
+  const char* RooFitHist::name() const { return this->_func->GetName(); }
+  const char* RooFitHist::title() const { return this->_func->GetTitle(); }
+  RooRealVar* RooFitHist::obs(size_t i) const { if(i>this->_obs.size()) throw std::runtime_error("attempt to access invalid observable!"); return this->_obs[i]; }
+  size_t RooFitHist::dim() const { return this->_obs.size(); }
+  
+  const char* RooFitHist::GetName() const { return this->name(); }
+  const char* RooFitHist::GetTitle() const { return this->title(); }
+  void RooFitHist::Print(const char* /*opts*/) const { std::cout << this->GetName() << " " << this->GetTitle() << std::endl; this->printHist(); }
+  
+  void RooFitHist::saveSnapshot(std::map<std::string,double>& snsh) const {
+    for(size_t i=0; i<this->_obs.size(); ++i){
       snsh[this->_obs[i]->GetName()] = ::getVal(this->_obs[i]);
    }
 }

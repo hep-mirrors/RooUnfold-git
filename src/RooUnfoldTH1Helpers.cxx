@@ -210,17 +210,18 @@ Hist *createHist(const TVectorD &vec, const TVectorD &errvec, const char *name, 
    return hist;
 }
 
-// Specializations for TH1 as both Hist and AnyHist
-template TH1 *createHist<TH1, TH1>(const char *name, const char *title, const std::vector<Variable<TH1>> &x);
-template TH1 *createHist<TH1, TH1>(const TVectorD &vec, const TVectorD &errvec, const char *name, const char *title,
-                                   const std::vector<Variable<TH1>> &x, bool overflow);
+  // Specializations for TH1 as both Hist and AnyHist
+  template TH1* createHist<TH1, TH1>(const char* name, const char* title, const std::vector<Variable<TH1>>& x);
 
-// Specializations for TH2 as both Hist and AnyHist
-template TH2 *createHist<TH2, TH2>(const char *name, const char *title, const std::vector<Variable<TH2>> &x);
-template TH2 *createHist<TH2, TH2>(const TMatrixD &m, const char *name, const char *title,
-                                   const std::vector<Variable<TH2>> &x, bool overflow);
-template TH2 *createHist<TH2, TH2>(const TMatrixD &m, const TMatrixD &me, const char *name, const char *title,
-                                   const std::vector<Variable<TH2>> &x, bool overflow);
+  template TH1* createHist<TH1, TH1>(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<TH1>>& x, bool overflow);
+
+  // Specializations for TH2 as both Hist and AnyHist
+  template TH2* createHist<TH2, TH2>(const char* name, const char* title, const std::vector<Variable<TH2>>& x);  
+  template TH2* createHist<TH2, TH2>(const TMatrixD& m, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
+  template TH2* createHist<TH2, TH2>(const TMatrixD& m, const TMatrixD& me, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);  
+  
+  // Specializations for TH1 as Hist and TH2 as AnyHist
+  template TH1* createHist<TH1, TH2>(const TVectorD& vec, const TVectorD& errvec, const char* name, const char* title, const std::vector<Variable<TH2>>& x, bool overflow);
 
 // Specializations for TH1 as Hist and TH2 as AnyHist
 template TH1 *createHist<TH1, TH2>(const TVectorD &vec, const TVectorD &errvec, const char *name, const char *title,
