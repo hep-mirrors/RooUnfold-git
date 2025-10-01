@@ -1126,11 +1126,14 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
          p["const"] << 1;
       }
    };
-   auto writeDomain = [&](JSONNode &paramlist, const std::string &name, double min, double max) {
+   auto writeDomain = [&](JSONNode &paramlist, const std::string &name, double min, double max, bool constant = false) {
       auto &p = paramlist.append_child().set_map();
       p["name"] << name;
       p["min"] << min;
       p["max"] << max;
+      if (constant) {
+         p["const"] << 1;
+      }      
    };
    auto binVolume = [&](const RooArgList &observables) {
       double v = 1;
@@ -1194,6 +1197,8 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
    simultaneous_likelihood["distributions"].append_child() << pdf_name;
    auto &samples = signalregion["samples"].set_seq();
 
+   std::unordered_set<std::string> np_names;
+   
    // add the background sample
    std::unordered_set<std::string> background_systematics;
    if (include_sys) {
@@ -1228,6 +1233,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
             normdata["hi"] << up.first;
             normdata["lo"] << dn.first;
             normdata["parameter"] << pname;
+            normsys["constraint_name"] << pname+"Constraint";	    
          }
          if (up.second.size() > 0 || dn.second.size() > 0) {
             auto &shapesys = modifiers.append_child().set_map();
@@ -1244,7 +1250,10 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
             else
                fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal, true);
             shapedata["parameter"] << pname;
+            shapesys["constraint_name"] << pname+"Constraint";	    
          }
+         if (!pname.empty())
+            np_names.insert(pname);	 
       }
    }
 
@@ -1337,7 +1346,6 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
    // add everything to the json structure
    int i_truth = 0;
    std::vector<std::string> poi_names, poi_nomnames;
-   std::unordered_set<std::string> np_names;
    for (size_t i_truth = 0; i_truth <= truth_bins.size(); ++i_truth) {
       auto &signal = samples.append_child().set_map();
       std::string truth_cat = "fakes";
@@ -1371,6 +1379,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
             normdata["hi"] << up.first;
             normdata["lo"] << dn.first;
             normdata["parameter"] << pname;
+            normsys["constraint_name"] << pname+"Constraint";	    
          }
          if (up.second.size() > 0 || dn.second.size() > 0) {
             auto &shapesys = modifiers.append_child().set_map();
@@ -1387,6 +1396,7 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
             else
                fill_vector_product(shapedata["hi"].set_map()["contents"], up.second, nominal, true);
             shapedata["parameter"] << pname;
+            shapesys["constraint_name"] << pname+"Constraint";	    
          }
          if (!pname.empty())
             np_names.insert(pname);
@@ -1403,8 +1413,17 @@ std::string RooUnfoldSpec::createLikelihoodJSON(double tau, bool include_sys, bo
    }
 
    for (const auto &np : np_names) {
-      writeParameter(default_parameters, np, 0.);
+      auto &constraint = distributions.append_child().set_map();
+      std::string glob = "nom_" + np ;
+      constraint["type"] << "gaussian_dist";
+      constraint["mean"] << glob;
+      constraint["x"] << np ;     
+      constraint["sigma"] << 1.;
+      constraint["name"] << np + "Constraint";
+      writeParameter(default_parameters, glob, 0., true);
+      writeParameter(default_parameters, np, 0.);      
       writeDomain(np_axes, np, -5., 5.);
+      writeDomain(globs_axes, glob, -5., 5.);      
    }
 
    // create regularization term
