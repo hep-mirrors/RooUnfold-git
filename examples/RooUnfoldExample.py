@@ -1,14 +1,18 @@
 #!/usr/bin/env python
-# ==============================================================================
-#  File and Version Information:
-#       $Id$
+# BEGIN ROOUNFOLD COPYRIGHT
+# RooUnfold — Unfolding library for particle-physics inverse problems
+#
+# Copyright © 2011–2025 CERN and the authors’ respective research institutions
+# Please refer to the CONTRIBUTORS file for details.
+#
+# License: BSD-3-Clause
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# END ROOUNFOLD COPYRIGHT
 #
 #  Description:
 #       Simple example usage of the RooUnfold package using toy MC.
 #
-#  Author: Tim Adye <T.J.Adye@rl.ac.uk>
-#
-# ==============================================================================
 
 import sys
 

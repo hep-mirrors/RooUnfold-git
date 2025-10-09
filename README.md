@@ -122,3 +122,13 @@ contains some of the major milestone versions.
   - 3.0.0: Inclusion of RooFit, transition to RooFitUnfold.
   - 2.0.0: General interface improvements
   - 1.1.1: Legacy port from SVN repository
+
+License
+---
+
+RooUnfold is distributed under the terms of the **BSD 3-Clause License**.
+
+- Copyright © 2005–2025, CERN and the authors’ respective research institutions.  
+- Authorship is tracked in the [git history](https://gitlab.cern.ch/RooUnfold/RooUnfold/-/commits/master/) and summarized in file headers by the maintainers. Please submit a merge request (or contact us) to correct anything we might have missed.
+- See the [LICENSE](LICENSE) file for the full text, and [LICENSE.spdx](LICENSE.spdx) for the SPDX identifier.
+
