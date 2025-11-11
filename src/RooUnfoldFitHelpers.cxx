@@ -179,16 +179,18 @@ int nBins(const RooAbsArg *arg)
       return ((const RooRealVar *)(arg))->getBinning().numBins();
    } else if (arg->InheritsFrom(RooCategory::Class())) {
       return ((const RooCategory *)(arg))->numTypes();
-   } 
+   }
    throw std::runtime_error("unknown argument type for nBins!");
 }
-int nBins(const RooAbsCollection *c){  
-  if(!c || c->size() == 0) return 0;
-  int n = 1;
-  for(const auto& e:*c){
-    n *= ::nBins(e);
-  }
-  return n;
+int nBins(const RooAbsCollection *c)
+{
+   if (!c || c->size() == 0)
+      return 0;
+   int n = 1;
+   for (const auto &e : *c) {
+      n *= ::nBins(e);
+   }
+   return n;
 }
 double min(RooAbsArg *arg)
 {
@@ -823,7 +825,7 @@ convertTH1(const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflo
    return dh;
 }
 
-std::vector<RooRealVar *> createGammas(const TH1 *histo, const RooArgList& obs, double uncThreshold)
+std::vector<RooRealVar *> createGammas(const TH1 *histo, const RooArgList &obs, double uncThreshold)
 {
    // Define x,y,z as 1st, 2nd and 3rd observable
    RooRealVar *xvar = dynamic_cast<RooRealVar *>(obs.at(0));
@@ -833,14 +835,14 @@ std::vector<RooRealVar *> createGammas(const TH1 *histo, const RooArgList& obs, 
    int xoffset = 1 + (xvar->numBins() - histo->GetNbinsX());
    int yoffset = yvar ? 1 + (yvar->numBins() - histo->GetNbinsY()) : 0;
    int zoffset = zvar ? 1 + (zvar->numBins() - histo->GetNbinsZ()) : 0;
-   
+
    std::vector<RooRealVar *> gammas;
    Int_t ix(0), iy(0), iz(0);
-   for (ix = 0; ix < ::nBins(xvar); ix++) {   
+   for (ix = 0; ix < ::nBins(xvar); ix++) {
       if (dim(histo) > 1) {
-         for (iy = 0; iy < ::nBins(yvar); iy++) {	
+         for (iy = 0; iy < ::nBins(yvar); iy++) {
             if (dim(histo) > 2) {
-               for (iz = 0; iz < ::nBins(zvar); iz++) {	      
+               for (iz = 0; iz < ::nBins(zvar); iz++) {
                   double val = histo->GetBinContent(ix + xoffset, iy + yoffset, iz + zoffset);
                   double err = histo->GetBinError(ix + xoffset, iy + yoffset, iz + zoffset);
                   if (val > 0 && err / val > uncThreshold) {
@@ -1008,9 +1010,9 @@ RooFitHist::RooFitHist(RooDataHist *dh, const RooArgList &obslist, double uncThr
 RooAbsReal *makeParamHistFunc(const char *name, const char *title, const RooArgList &obslist,
                               const std::vector<RooRealVar *> &gamma)
 {
-  if(::nBins(&obslist) != gamma.size()){
-    throw std::runtime_error("makeParamHistFunc: inconsistent number of bins and gamma parameters");
-  }
+   if (::nBins(&obslist) != gamma.size()) {
+      throw std::runtime_error("makeParamHistFunc: inconsistent number of bins and gamma parameters");
+   }
    RooArgList gammas;
    RooRealVar *const_g = NULL;
    for (auto g : gamma) {
