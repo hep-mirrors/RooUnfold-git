@@ -27,7 +27,7 @@ try:
     import RooUnfold
 except ImportError:
     # somehow the python module was not found, let's try loading the library by hand
-    ROOT.gSystem.Load("libRooUnfold.so")
+    ROOT.gSystem.Load("libRooUnfold")
 
 # ==============================================================================
 #  Gaussian smearing, systematic translation, and variable inefficiency

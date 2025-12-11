@@ -11,7 +11,7 @@
 
 import ROOT
 
-ROOT.gSystem.Load("libRooUnfold.so")
+ROOT.gSystem.Load("libRooUnfold")
 RooUnfoldResponse = ROOT.RooUnfoldResponse
 RooUnfoldBayes = ROOT.RooUnfoldBayes
 RooUnfoldBinByBin = ROOT.RooUnfoldBayes
