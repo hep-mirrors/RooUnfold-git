@@ -1329,7 +1329,7 @@ void RooUnfoldSpec::HistContainer::setNominal(const TH1 *nom, const RooArgList &
    this->_nom = RooUnfolding::makeHistFunc(nom, obslist, includeUnderflowOverflow, correctDensity);
    this->_obs.add(obslist);
    if (errorThreshold >= 0) {
-      this->_gammas = RooUnfolding::createGammas(nom, includeUnderflowOverflow, errorThreshold);
+      this->_gammas = RooUnfolding::createGammas(nom, obslist, errorThreshold);
       if (_gammas.size() > 0) {
          this->_staterror = RooUnfolding::makeParamHistFunc(TString::Format("%s_staterrors", nom->GetName()),
                                                             nom->GetTitle(), obslist, _gammas);

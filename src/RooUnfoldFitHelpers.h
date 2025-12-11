@@ -99,8 +99,8 @@ RooDataHist *convertTH1(const TH1 *histo, const std::vector<RooRealVar *> &vars,
 double getIntegral(const TH1 *histo, bool includeUnderflowOverflow, bool correctDensity);
 RooDataHist *convertTH1(const TH1 *histo, const RooArgList &obs, bool includeUnderflowOverflow,
                         bool correctDensity = false, double scale = 1.);
-std::vector<RooRealVar *> createGammas(const TH1 *histo, bool includeUnderflowOverflow, double uncThreshold);
 std::vector<RooRealVar *> createGammas(const RooDataHist *dh, const RooArgList &obs, double uncThreshold);
+std::vector<RooRealVar *> createGammas(const TH1 *histo, const RooArgList &obs, double uncThreshold);
 RooAbsReal *makeParamHistFunc(const char *name, const char *title, const RooArgList &obslist,
                               const std::vector<RooRealVar *> &gamma);
 const RooArgSet *getObservables(const RooHistFunc *f);
